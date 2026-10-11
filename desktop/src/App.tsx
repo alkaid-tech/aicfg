@@ -38,6 +38,11 @@ import { canFocusNode, dependencyGraph, focusDependencyGraph } from "./graph";
 import { CreatePresetForm, PresetDetail } from "./PresetEditor";
 
 type Page = "library" | "presets" | "rules" | "targets" | "graph" | "settings";
+type Deletion = {
+  kind: "skill" | "preset" | "rule" | "target" | "preset-skill";
+  id: string;
+  name: string;
+};
 const pages = [
   {
     id: "library" as Page,
@@ -108,23 +113,36 @@ function Modal({
   close,
   busy,
   compact = false,
+  initialFocus,
+  descriptionId,
 }: {
   title: string;
   children: ReactNode;
   close: () => void;
   busy: boolean;
   compact?: boolean;
+  initialFocus?: string;
+  descriptionId?: string;
 }) {
   const ref = useRef<HTMLDialogElement>(null);
   useEffect(() => {
-    ref.current?.showModal();
-    if (compact) ref.current?.querySelector<HTMLInputElement>("input")?.focus();
-  }, [compact]);
+    const dialog = ref.current;
+    const previousFocus = document.activeElement;
+    dialog?.showModal();
+    if (initialFocus) dialog?.querySelector<HTMLElement>(initialFocus)?.focus();
+    else if (compact) dialog?.querySelector<HTMLInputElement>("input")?.focus();
+    return () => {
+      dialog?.close();
+      if (previousFocus instanceof HTMLElement && previousFocus.isConnected)
+        previousFocus.focus();
+    };
+  }, [compact, initialFocus]);
   return (
     <dialog
       ref={ref}
       className={compact ? "modal modal-compact" : "modal"}
       aria-labelledby="modal-title"
+      aria-describedby={descriptionId}
       onCancel={(e) => {
         e.preventDefault();
         if (!busy) close();
@@ -230,6 +248,7 @@ export default function App() {
   const [selectedPreset, setSelectedPreset] = useState(""),
     [presetName, setPresetName] = useState("");
   const [pendingPage, setPendingPage] = useState<Page | null>(null);
+  const [deletion, setDeletion] = useState<Deletion | null>(null);
   const [selectedTarget, setSelectedTarget] = useState(""),
     [targetConfig, setTargetConfig] = useState<TargetConfig>({
       presets: [],
@@ -393,12 +412,29 @@ export default function App() {
         ),
       );
   }
-  async function remove(kind: string, id: string, name: string) {
-    if (
-      !window.confirm(`Delete “${name}”? Existing references will be checked.`)
-    )
+  function remove(kind: Deletion["kind"], id: string, name: string) {
+    if (busy) return;
+    setError("");
+    setDeletion({ kind, id, name });
+    setModal("delete");
+  }
+  async function confirmDeletion() {
+    if (busy || !deletion) return;
+    const { kind, id } = deletion;
+    if (kind === "preset-skill") {
+      setPreset((current) => ({
+        ...current,
+        skills: current.skills.filter((s) => s.skill_id !== id),
+      }));
+      close();
       return;
-    await run({ action: "delete", data: { kind, id } });
+    }
+    const result = await run(
+      kind === "target"
+        ? { action: "remove_target", data: { id } }
+        : { action: "delete", data: { kind, id } },
+    );
+    if (result) close();
   }
   async function showPreview(versionChoices: Record<string, string> = {}) {
     const result = await run({
@@ -417,6 +453,7 @@ export default function App() {
     setModal("");
     setPreview(null);
     setPendingPage(null);
+    setDeletion(null);
   };
 
   return (
@@ -533,7 +570,7 @@ export default function App() {
             Working, please wait…
           </div>
         )}
-        {error && (
+        {error && modal !== "delete" && (
           <div className="banner error" role="alert">
             <span>{error}</span>
             <button aria-label="Dismiss error" onClick={() => setError("")}>
@@ -698,6 +735,7 @@ export default function App() {
                 busy={busy}
                 dirty={presetDirty}
                 onChange={setPreset}
+                onRemoveSkill={(id, name) => remove("preset-skill", id, name)}
                 onSave={savePreset}
                 onReset={() => setPreset(structuredClone(storedPreset!))}
                 onBack={() => navigate("presets")}
@@ -947,17 +985,9 @@ export default function App() {
                       <button
                         className="text-button danger"
                         disabled={busy}
-                        onClick={() => {
-                          if (
-                            confirm(
-                              "Disconnect this target project? Installed content will be preserved.",
-                            )
-                          )
-                            void run({
-                              action: "remove_target",
-                              data: { id: selectedTarget },
-                            });
-                        }}
+                        onClick={() =>
+                          remove("target", target.target.id, target.target.name)
+                        }
                       >
                         Disconnect target project
                       </button>
@@ -1119,13 +1149,62 @@ export default function App() {
                 updates: "Adopt skill updates",
                 prepare: "Set up configuration repository",
                 relocate: "Change skill source",
+                delete:
+                  deletion?.kind === "target"
+                    ? "Disconnect target project?"
+                    : deletion?.kind === "preset-skill"
+                      ? "Remove skill from preset?"
+                      : `Delete ${deletion?.kind}?`,
               } as Record<string, string>
             )[modal]
           }
           close={close}
           busy={busy}
-          compact={modal === "create-preset" || modal === "leave-preset"}
+          compact={
+            modal === "create-preset" ||
+            modal === "leave-preset" ||
+            modal === "delete"
+          }
+          initialFocus={modal === "delete" ? "[data-cancel]" : undefined}
+          descriptionId={modal === "delete" ? "delete-description" : undefined}
         >
+          {modal === "delete" && deletion && (
+            <div className="form confirmation">
+              <p id="delete-description">
+                {deletion.kind === "target"
+                  ? `Disconnect “${deletion.name}” from aicfg? Its repository and installed content will be preserved.`
+                  : deletion.kind === "preset-skill"
+                    ? `Remove “${deletion.name}” from “${preset.name}”? The skill will remain in your Library. Save the preset to apply this change.`
+                    : `Delete “${deletion.name}” from your configuration? Existing references will be checked before deletion.`}
+              </p>
+              {error && (
+                <p className="error-text" role="alert">
+                  {error}
+                </p>
+              )}
+              <div className="actions">
+                <button
+                  className="secondary"
+                  data-cancel
+                  disabled={busy}
+                  onClick={close}
+                >
+                  Cancel
+                </button>
+                <button
+                  className="primary destructive"
+                  disabled={busy}
+                  onClick={confirmDeletion}
+                >
+                  {deletion.kind === "target"
+                    ? "Disconnect"
+                    : deletion.kind === "preset-skill"
+                      ? "Remove skill"
+                      : "Delete"}
+                </button>
+              </div>
+            </div>
+          )}
           {modal === "prepare" && (
             <div className="form">
               <label>
