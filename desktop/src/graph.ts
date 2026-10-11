@@ -1,5 +1,14 @@
 import type { Node, Edge } from "@xyflow/react";
 import type { State } from "./types";
+import { createTranslator, translateBackendMessage } from "./i18n";
+import type { Message, Translator } from "./i18n";
+
+const nodeKinds: Record<string, Message> = {
+  target: "Target project",
+  preset: "Preset",
+  skill: "Skill",
+  rule: "Rule",
+};
 
 type DependencyGraph = { nodes: Node[]; edges: Edge[] };
 
@@ -14,6 +23,7 @@ export function canFocusNode(id: string): boolean {
 export function focusDependencyGraph(
   graph: DependencyGraph,
   focusedId: string,
+  t: Translator = createTranslator("en"),
 ): DependencyGraph {
   if (!canFocusNode(focusedId) || !graph.nodes.some((n) => n.id === focusedId))
     return graph;
@@ -66,7 +76,7 @@ export function focusDependencyGraph(
           : related
             ? "graph-node-related"
             : "graph-node-muted",
-        ariaLabel: `${node.ariaLabel ?? node.data.label}, ${selected ? "focused" : related ? "related dependency" : "unrelated"}`,
+        ariaLabel: `${node.ariaLabel ?? node.data.label}, ${t(selected ? "focused" : related ? "related dependency" : "unrelated")}`,
         style: {
           ...node.style,
           opacity: related ? 1 : 0.22,
@@ -96,6 +106,7 @@ export function focusDependencyGraph(
 export function dependencyGraph(
   state: State,
   mode: "presets" | "targets",
+  t: Translator = createTranslator("en"),
 ): DependencyGraph {
   const nodes: Node[] = [],
     edges: Edge[] = [];
@@ -113,7 +124,7 @@ export function dependencyGraph(
       selected: false,
       focusable: canFocusNode(id),
       ariaRole: canFocusNode(id) ? "button" : "group",
-      ariaLabel: `${id.split(":")[0]} ${label}`,
+      ariaLabel: `${t(nodeKinds[id.split(":")[0]])} ${label}`,
       deletable: false,
       style: {
         borderRadius: 8,
@@ -142,7 +153,7 @@ export function dependencyGraph(
       const id = `target:${view.target.id}`;
       add(
         id,
-        `${view.target.name} · ${view.status}`,
+        `${view.target.name} · ${translateBackendMessage(t, view.status)}`,
         0,
         i,
         view.status === "Synced" ? "#edf3ec" : "#fbf3db",
@@ -197,7 +208,7 @@ export function dependencyGraph(
     .forEach((id, i) =>
       add(
         id,
-        "This reference no longer exists. Choose another item.",
+        t("This reference no longer exists. Choose another item."),
         1,
         state.config.presets.length + i,
         "#fdebec",

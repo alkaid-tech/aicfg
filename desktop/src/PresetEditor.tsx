@@ -2,6 +2,7 @@ import { useState } from "react";
 import type { FormEvent } from "react";
 import { ChevronLeft, Plus, Search, Trash2, X } from "lucide-react";
 import type { Config, Preset, Skill } from "./types";
+import { useI18n } from "./I18nProvider";
 
 export function availableSkills(
   library: Skill[],
@@ -30,22 +31,25 @@ export function CreatePresetForm({
   onCreate: () => void;
   onCancel: () => void;
 }) {
+  const { t } = useI18n();
   function submit(event: FormEvent) {
     event.preventDefault();
     if (!busy && name.trim()) onCreate();
   }
   return (
     <form className="form preset-create" onSubmit={submit}>
-      <p>Name your preset, then add skills and rules on its detail page.</p>
+      <p>
+        {t("Name your preset, then add skills and rules on its detail page.")}
+      </p>
       <label>
-        Preset name
+        {t("Preset name")}
         <input
           autoFocus
           required
           value={name}
           disabled={busy}
           onChange={(event) => onNameChange(event.target.value)}
-          placeholder="For example: Full Stack"
+          placeholder={t("For example: Full Stack")}
         />
       </label>
       <div className="actions">
@@ -55,14 +59,14 @@ export function CreatePresetForm({
           disabled={busy}
           onClick={onCancel}
         >
-          Cancel
+          {t("Cancel")}
         </button>
         <button
           className="primary"
           type="submit"
           disabled={busy || !name.trim()}
         >
-          Create and open
+          {t("Create and open")}
         </button>
       </div>
     </form>
@@ -82,11 +86,12 @@ function References({
   busy: boolean;
   onChange: (ids: string[]) => void;
 }) {
+  const { t } = useI18n();
   const choices = [
     ...items,
     ...selected
       .filter((id) => !items.some((item) => item.id === id))
-      .map((id) => ({ id, name: "Missing reference" })),
+      .map((id) => ({ id, name: t("Missing reference") })),
   ];
   return (
     <details className="preset-options">
@@ -114,7 +119,7 @@ function References({
             </label>
           ))
         ) : (
-          <p className="muted">No items available</p>
+          <p className="muted">{t("No items available")}</p>
         )}
       </fieldset>
     </details>
@@ -145,20 +150,21 @@ export function PresetDetail({
   onReset: () => void;
   onBack: () => void;
 }) {
+  const { t } = useI18n();
   const [query, setQuery] = useState("");
   const matches = availableSkills(config.library, preset.skills, query);
   return (
-    <section className="preset-detail" aria-label="Preset details">
+    <section className="preset-detail" aria-label={t("Preset details")}>
       <button
         className="text-button preset-back"
         disabled={busy}
         onClick={onBack}
       >
         <ChevronLeft size={15} />
-        All presets
+        {t("All presets")}
       </button>
       <label className="preset-name">
-        Name
+        {t("Name")}
         <input
           value={preset.name}
           disabled={busy}
@@ -170,14 +176,14 @@ export function PresetDetail({
       <div className="preset-content">
         <div className="preset-selected">
           <div className="preset-section-heading">
-            <h2>Added skills</h2>
+            <h2>{t("Added skills")}</h2>
             <span>{preset.skills.length}</span>
           </div>
           {preset.skills.length ? (
             <div className="preset-skill-list">
               {preset.skills.map((ref) => {
                 const skill = config.library.find((s) => s.id === ref.skill_id);
-                const name = skill?.name ?? "Missing reference";
+                const name = skill?.name ?? t("Missing reference");
                 return (
                   <article className="preset-skill" key={ref.skill_id}>
                     <div className="preset-skill-heading">
@@ -186,13 +192,13 @@ export function PresetDetail({
                         <small>
                           {skill
                             ? sourceLabel(skill)
-                            : "This skill is no longer in the Library"}
+                            : t("This skill is no longer in the Library")}
                         </small>
                       </div>
                       <button
                         className="icon-button"
                         disabled={busy}
-                        aria-label={`Remove ${name}`}
+                        aria-label={t("Remove {name}", { name })}
                         onClick={() => onRemoveSkill(ref.skill_id, name)}
                       >
                         <Trash2 size={15} />
@@ -201,15 +207,19 @@ export function PresetDetail({
                     <details className="preset-version">
                       <summary>
                         {ref.revision
-                          ? `Pinned version ${ref.revision.slice(0, 8)}`
-                          : "Follow the adopted Library version"}
+                          ? t("Pinned version {revision}", {
+                              revision: ref.revision.slice(0, 8),
+                            })
+                          : t("Follow the adopted Library version")}
                       </summary>
                       <label>
-                        Source commit
+                        {t("Source commit")}
                         <input
                           value={ref.revision}
                           disabled={busy}
-                          placeholder="Leave blank to follow the adopted Library version"
+                          placeholder={t(
+                            "Leave blank to follow the adopted Library version",
+                          )}
                           onChange={(event) =>
                             onChange({
                               ...preset,
@@ -229,32 +239,32 @@ export function PresetDetail({
             </div>
           ) : (
             <div className="preset-skill-empty">
-              <h3>No skills yet</h3>
-              <p>Search the Library on the right to add skills.</p>
+              <h3>{t("No skills yet")}</h3>
+              <p>{t("Search the Library on the right to add skills.")}</p>
             </div>
           )}
         </div>
         <aside
           className="preset-library"
-          aria-label="Add skills from the Library"
+          aria-label={t("Add skills from the Library")}
         >
           <div className="preset-section-heading">
-            <h2>Add skills</h2>
-            <span>LIBRARY</span>
+            <h2>{t("Add skills")}</h2>
+            <span>{t("LIBRARY")}</span>
           </div>
           <label className="search">
             <Search size={16} aria-hidden="true" />
             <input
               type="search"
-              aria-label="Search Library skills"
-              placeholder="Search by name, description, or source…"
+              aria-label={t("Search Library skills")}
+              placeholder={t("Search by name, description, or source…")}
               value={query}
               onChange={(event) => setQuery(event.target.value)}
             />
             {query && (
               <button
                 className="icon-button"
-                aria-label="Clear skill search"
+                aria-label={t("Clear skill search")}
                 onClick={() => setQuery("")}
               >
                 <X size={14} />
@@ -262,7 +272,7 @@ export function PresetDetail({
             )}
           </label>
           <p className="preset-result-count" role="status">
-            {matches.length} skills available to add
+            {t("{count} skills available to add", { count: matches.length })}
           </p>
           <div className="preset-search-results">
             {matches.map((skill) => (
@@ -272,7 +282,7 @@ export function PresetDetail({
                   <button
                     className="secondary"
                     disabled={busy}
-                    aria-label={`Add ${skill.name}`}
+                    aria-label={t("Add {name}", { name: skill.name })}
                     onClick={() =>
                       onChange({
                         ...preset,
@@ -284,7 +294,7 @@ export function PresetDetail({
                     }
                   >
                     <Plus size={13} />
-                    Add
+                    {t("Add")}
                   </button>
                 </div>
                 {skill.description && <p>{skill.description}</p>}
@@ -294,10 +304,10 @@ export function PresetDetail({
             {!matches.length && (
               <p className="preset-search-empty">
                 {!config.library.length
-                  ? "Your Library is empty. Add a skill there first."
+                  ? t("Your Library is empty. Add a skill there first.")
                   : query.trim()
-                    ? "No available skills match. Try another search."
-                    : "All Library skills have been added."}
+                    ? t("No available skills match. Try another search.")
+                    : t("All Library skills have been added.")}
               </p>
             )}
           </div>
@@ -305,14 +315,14 @@ export function PresetDetail({
       </div>
       <div className="preset-references">
         <References
-          label="Rules"
+          label={t("Rules")}
           items={config.rules}
           selected={preset.rules}
           busy={busy}
           onChange={(rules) => onChange({ ...preset, rules })}
         />
         <References
-          label="Include other presets"
+          label={t("Include other presets")}
           items={config.presets.filter((p) => p.id !== preset.id)}
           selected={preset.includes}
           busy={busy}
@@ -321,12 +331,12 @@ export function PresetDetail({
       </div>
       <div className="preset-savebar">
         <span role="status">
-          {dirty ? "Unsaved changes" : "All changes saved"}
+          {dirty ? t("Unsaved changes") : t("All changes saved")}
         </span>
         <div className="header-actions">
           {dirty && (
             <button className="secondary" disabled={busy} onClick={onReset}>
-              Discard changes
+              {t("Discard changes")}
             </button>
           )}
           <button
@@ -334,7 +344,7 @@ export function PresetDetail({
             disabled={busy || !dirty || !preset.name.trim()}
             onClick={onSave}
           >
-            Save changes
+            {t("Save changes")}
           </button>
         </div>
       </div>

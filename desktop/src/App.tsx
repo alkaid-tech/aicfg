@@ -36,6 +36,8 @@ import type {
 } from "./types";
 import { canFocusNode, dependencyGraph, focusDependencyGraph } from "./graph";
 import { CreatePresetForm, PresetDetail } from "./PresetEditor";
+import { useI18n } from "./I18nProvider";
+import { translateBackendMessage } from "./i18n";
 
 type Page = "library" | "presets" | "rules" | "targets" | "graph" | "settings";
 type Deletion = {
@@ -81,12 +83,12 @@ const pages = [
   },
   {
     id: "settings" as Page,
-    label: "Configuration repository",
+    label: "Settings",
     icon: Settings,
     eyebrow: "Your configuration and version history",
-    title: "Configuration repository",
+    title: "Settings",
   },
-];
+] as const;
 const initial: State = {
   root: null,
   config: { schema_version: 1, library: [], presets: [], rules: [] },
@@ -124,6 +126,7 @@ function Modal({
   initialFocus?: string;
   descriptionId?: string;
 }) {
+  const { t } = useI18n();
   const ref = useRef<HTMLDialogElement>(null);
   useEffect(() => {
     const dialog = ref.current;
@@ -152,7 +155,7 @@ function Modal({
         <h2 id="modal-title">{title}</h2>
         <button
           className="icon-button"
-          aria-label="Close"
+          aria-label={t("Close")}
           disabled={busy}
           onClick={close}
         >
@@ -203,6 +206,7 @@ function Selection({
   selected: string[];
   change: (values: string[]) => void;
 }) {
+  const { t } = useI18n();
   return (
     <fieldset className="selection">
       <legend>{label}</legend>
@@ -224,13 +228,14 @@ function Selection({
           </label>
         ))
       ) : (
-        <p className="muted">No items available</p>
+        <p className="muted">{t("No items available")}</p>
       )}
     </fieldset>
   );
 }
 
 export default function App() {
+  const { t, preference, setPreference, persistenceError } = useI18n();
   const [state, setState] = useState<State>(initial),
     [page, setPage] = useState<Page>("library");
   const [busy, setBusy] = useState(false),
@@ -238,7 +243,7 @@ export default function App() {
     [error, setError] = useState("");
   const [query, setQuery] = useState(""),
     [selectedSkill, setSelectedSkill] = useState(""),
-    [markdown, setMarkdown] = useState("");
+    [markdown, setMarkdown] = useState<string | null>("");
   const [modal, setModal] = useState(""),
     [source, setSource] = useState(""),
     [candidates, setCandidates] = useState<Candidate[]>([]),
@@ -278,12 +283,12 @@ export default function App() {
     !!target && JSON.stringify(target.config) !== JSON.stringify(targetConfig);
   const skill = state.config.library.find((s) => s.id === selectedSkill);
   const graph = useMemo(
-    () => dependencyGraph(state, graphMode),
-    [state, graphMode],
+    () => dependencyGraph(state, graphMode, t),
+    [state, graphMode, t],
   );
   const focusedGraph = useMemo(
-    () => focusDependencyGraph(graph, graphFocus),
-    [graph, graphFocus],
+    () => focusDependencyGraph(graph, graphFocus, t),
+    [graph, graphFocus, t],
   );
   const focusedGraphNode = graph.nodes.find((node) => node.id === graphFocus);
   const library = state.config.library.filter((s) =>
@@ -327,8 +332,8 @@ export default function App() {
         directory: true,
         multiple: false,
         title: prepare
-          ? "Choose an empty directory for your configuration repository"
-          : "Choose the configuration repository root",
+          ? t("Choose an empty directory for your configuration repository")
+          : t("Choose the configuration repository root"),
       });
       if (typeof path === "string") {
         const result = await run({
@@ -346,7 +351,7 @@ export default function App() {
       const path = await open({
         directory: true,
         multiple: false,
-        title: "Choose the target project repository root",
+        title: t("Choose the target project repository root"),
       });
       if (typeof path === "string") {
         const result = await run({ action: "add_target", data: { path } });
@@ -465,7 +470,7 @@ export default function App() {
             aicfg<span className="brand-dot">.</span>
           </span>
         </div>
-        <div className="workspace-label">YOUR AGENT WORKSPACE</div>
+        <div className="workspace-label">{t("YOUR AGENT WORKSPACE")}</div>
         <nav>
           {pages.map((p) => (
             <button
@@ -475,7 +480,7 @@ export default function App() {
               onClick={() => navigate(p.id)}
             >
               <p.icon size={18} strokeWidth={1.6} />
-              {p.label}
+              {t(p.label)}
               {p.id === "library" && <span>{state.config.library.length}</span>}
             </button>
           ))}
@@ -485,10 +490,10 @@ export default function App() {
           <div>
             <strong>
               {state.root
-                ? "Configuration repository connected"
-                : "No configuration repository connected"}
+                ? t("Configuration repository connected")
+                : t("No configuration repository connected")}
             </strong>
-            <small>{state.git_status}</small>
+            <small>{translateBackendMessage(t, state.git_status)}</small>
           </div>
         </div>
       </aside>
@@ -496,9 +501,11 @@ export default function App() {
         <header className="page-header">
           <div>
             <p className="eyebrow">
-              {presetDetail ? "PRESET / DETAILS AND EDITING" : current.eyebrow}
+              {presetDetail
+                ? t("PRESET / DETAILS AND EDITING")
+                : t(current.eyebrow)}
             </p>
-            <h1>{presetDetail ? storedPreset.name : current.title}</h1>
+            <h1>{presetDetail ? storedPreset.name : t(current.title)}</h1>
           </div>
           <div className="header-actions">
             {state.root && (
@@ -515,7 +522,7 @@ export default function App() {
                 }}
               >
                 <RefreshCw size={15} />
-                Check for updates
+                {t("Check for updates")}
               </button>
             )}
             {state.root && page === "library" && (
@@ -530,7 +537,7 @@ export default function App() {
                 }}
               >
                 <Plus size={16} />
-                Add skills to Library
+                {t("Add skills to Library")}
               </button>
             )}
             {state.root && page === "presets" && !presetDetail && (
@@ -540,7 +547,7 @@ export default function App() {
                 onClick={showCreatePreset}
               >
                 <Plus size={16} />
-                Create preset
+                {t("Create preset")}
               </button>
             )}
             {state.root && page === "rules" && (
@@ -553,13 +560,13 @@ export default function App() {
                 }}
               >
                 <Plus size={16} />
-                Create rule
+                {t("Create rule")}
               </button>
             )}
             {state.root && page === "targets" && (
               <button className="primary" disabled={busy} onClick={addTarget}>
                 <Plus size={16} />
-                Add target project
+                {t("Add target project")}
               </button>
             )}
           </div>
@@ -567,35 +574,94 @@ export default function App() {
         {busy && (
           <div className="busy">
             <LoaderCircle size={15} className="spin" />
-            Working, please wait…
+            {t("Working, please wait…")}
           </div>
         )}
         {error && modal !== "delete" && (
           <div className="banner error" role="alert">
-            <span>{error}</span>
-            <button aria-label="Dismiss error" onClick={() => setError("")}>
+            <span>{translateBackendMessage(t, error)}</span>
+            <button
+              aria-label={t("Dismiss error")}
+              onClick={() => setError("")}
+            >
               <X size={16} />
             </button>
           </div>
         )}
         {notice && (
           <div className="notice" role="status">
-            {notice}
+            {translateBackendMessage(t, notice)}
           </div>
         )}
 
-        {!state.root ? (
+        {page === "settings" && (
+          <section
+            className="language-settings form"
+            aria-label={t("Language settings")}
+          >
+            <label>
+              {t("Language")}
+              <select
+                value={preference}
+                onChange={(event) => setPreference(event.target.value)}
+              >
+                <option value="system">{t("Follow system language")}</option>
+                <option value="en">English</option>
+                <option value="zh">简体中文</option>
+                <option value="ja">日本語</option>
+              </select>
+            </label>
+            <p className="hint">
+              {t(
+                "Language changes take effect immediately and are saved on this device.",
+              )}
+            </p>
+            {persistenceError && (
+              <p className="error-text" role="alert">
+                {t(
+                  "Language changed for this session, but could not be saved on this device.",
+                )}
+              </p>
+            )}
+          </section>
+        )}
+
+        {page === "settings" && !state.root && (
+          <section className="settings-panel">
+            <h2>{t("Configuration repository")}</h2>
+            <p>{t("No configuration repository connected")}</p>
+            <div className="actions wrap">
+              <button
+                className="primary"
+                disabled={busy}
+                onClick={() => chooseRepository()}
+              >
+                <FolderGit2 size={17} />
+                {t("Connect configuration repository")}
+              </button>
+              <button
+                className="secondary"
+                disabled={busy}
+                onClick={() => setModal("prepare")}
+              >
+                {t("Set up a configuration repository")}
+              </button>
+            </div>
+          </section>
+        )}
+
+        {!state.root && page !== "settings" ? (
           <div className="welcome">
-            <div className="welcome-meta">LOCAL FIRST / MACOS</div>
+            <div className="welcome-meta">{t("LOCAL FIRST / MACOS")}</div>
             <h2>
-              Organize agent capabilities
+              {t("Organize agent capabilities")}
               <br />
-              for every repository.
+              {t("for every repository.")}
             </h2>
             <p>
-              Collect skills, compose presets, preview changes.
+              {t("Collect skills, compose presets, preview changes.")}
               <br />
-              Keep your configuration in your own Git repository.
+              {t("Keep your configuration in your own Git repository.")}
             </p>
             <div className="welcome-actions">
               <button
@@ -604,21 +670,21 @@ export default function App() {
                 onClick={() => chooseRepository()}
               >
                 <FolderGit2 size={17} />
-                Connect configuration repository
+                {t("Connect configuration repository")}
                 <ArrowUpRight size={16} />
               </button>
               <button
                 className="text-button"
                 onClick={() => setModal("prepare")}
               >
-                Set up a configuration repository
+                {t("Set up a configuration repository")}
                 <ChevronRight size={16} />
               </button>
             </div>
             <div className="welcome-foot">
-              <span>01 Collect</span>
-              <span>02 Compose</span>
-              <span>03 Apply</span>
+              <span>{t("01 Collect")}</span>
+              <span>{t("02 Compose")}</span>
+              <span>{t("03 Apply")}</span>
             </div>
           </div>
         ) : (
@@ -630,13 +696,15 @@ export default function App() {
                     <label className="search">
                       <Search size={15} />
                       <input
-                        aria-label="Search skills"
-                        placeholder="Search skills and sources…"
+                        aria-label={t("Search skills")}
+                        placeholder={t("Search skills and sources…")}
                         value={query}
                         onChange={(e) => setQuery(e.target.value)}
                       />
                     </label>
-                    <span className="muted">{library.length} skills</span>
+                    <span className="muted">
+                      {t("{count} skills", { count: library.length })}
+                    </span>
                   </div>
                   {library.length ? (
                     library.map((item) => (
@@ -653,17 +721,14 @@ export default function App() {
                               action: "read_skill",
                               data: { id: item.id },
                             });
-                            setMarkdown(
-                              r?.markdown ??
-                                "Could not read the skill content.",
-                            );
+                            setMarkdown(r?.markdown ?? null);
                           }}
                         >
                           <div className="row-title">
                             <BookOpen size={16} />
                             <strong>{item.name}</strong>
                           </div>
-                          <p>{item.description || "Source skill"}</p>
+                          <p>{item.description || t("Source skill")}</p>
                           <small>
                             {item.source
                               .replace("https://github.com/", "")
@@ -672,7 +737,7 @@ export default function App() {
                         </button>
                         <button
                           className="icon-button"
-                          aria-label={`Delete ${item.name}`}
+                          aria-label={t("Delete {name}", { name: item.name })}
                           disabled={busy}
                           onClick={() => remove("skill", item.id, item.name)}
                         >
@@ -682,8 +747,8 @@ export default function App() {
                     ))
                   ) : (
                     <Empty
-                      title="Add your first skill"
-                      text="Choose skills from a source repository."
+                      title={t("Add your first skill")}
+                      text={t("Choose skills from a source repository.")}
                     />
                   )}
                 </div>
@@ -691,21 +756,25 @@ export default function App() {
                   {skill ? (
                     <>
                       <div className="detail-heading">
-                        <span className="badge">SKILL</span>
+                        <span className="badge">{t("SKILL")}</span>
                         <h2>{skill.name}</h2>
                         <p className="source-label">{skill.source}</p>
                         <div className="metadata">
                           <span>
-                            Adopted version{" "}
+                            {t("Adopted version")}{" "}
                             <code>{skill.revision.slice(0, 8)}</code>
                           </span>
                           <span>
-                            Content fingerprint{" "}
+                            {t("Content fingerprint")}{" "}
                             <code>{skill.content_hash.slice(0, 10)}</code>
                           </span>
                         </div>
                       </div>
-                      <Markdown text={markdown} />
+                      <Markdown
+                        text={
+                          markdown ?? t("Could not read the skill content.")
+                        }
+                      />
                       <button
                         className="secondary"
                         disabled={busy}
@@ -714,13 +783,15 @@ export default function App() {
                           setModal("relocate");
                         }}
                       >
-                        Change source location
+                        {t("Change source location")}
                       </button>
                     </>
                   ) : (
                     <Empty
-                      title="Every skill has a source"
-                      text="Select a skill to read its documentation and adopted version."
+                      title={t("Every skill has a source")}
+                      text={t(
+                        "Select a skill to read its documentation and adopted version.",
+                      )}
                     />
                   )}
                 </div>
@@ -753,14 +824,20 @@ export default function App() {
                       <div className="grow">
                         <h3>{p.name}</h3>
                         <p>
-                          {p.skills.length} skills · {p.rules.length} rules ·{" "}
-                          {p.includes.length} included presets
+                          {t(
+                            "{skills} skills · {rules} rules · {presets} included presets",
+                            {
+                              skills: p.skills.length,
+                              rules: p.rules.length,
+                              presets: p.includes.length,
+                            },
+                          )}
                         </p>
                         <div className="tags">
                           {p.includes.map((id) => (
                             <span key={id}>
                               {state.config.presets.find((v) => v.id === id)
-                                ?.name ?? "Missing reference"}
+                                ?.name ?? t("Missing reference")}
                             </span>
                           ))}
                         </div>
@@ -770,12 +847,12 @@ export default function App() {
                         disabled={busy}
                         onClick={() => openPreset(p)}
                       >
-                        View details
+                        {t("View details")}
                         <ChevronRight size={14} />
                       </button>
                       <button
                         className="icon-button"
-                        aria-label={`Delete ${p.name}`}
+                        aria-label={t("Delete {name}", { name: p.name })}
                         disabled={busy}
                         onClick={() => remove("preset", p.id, p.name)}
                       >
@@ -785,8 +862,10 @@ export default function App() {
                   ))
                 ) : (
                   <Empty
-                    title="Combine the skills you use most"
-                    text="Presets can contain skills, rules, and references to other presets."
+                    title={t("Combine the skills you use most")}
+                    text={t(
+                      "Presets can contain skills, rules, and references to other presets.",
+                    )}
                   >
                     <button
                       className="primary"
@@ -794,7 +873,7 @@ export default function App() {
                       onClick={showCreatePreset}
                     >
                       <Plus size={15} />
-                      Create your first preset
+                      {t("Create your first preset")}
                     </button>
                   </Empty>
                 )}
@@ -814,7 +893,7 @@ export default function App() {
                         <p>
                           {r.paths.length
                             ? r.paths.join(" · ")
-                            : "Entire target project"}
+                            : t("Entire target project")}
                         </p>
                         <small>{r.body.slice(0, 100)}</small>
                       </div>
@@ -825,12 +904,12 @@ export default function App() {
                           setModal("rule");
                         }}
                       >
-                        Edit
+                        {t("Edit")}
                         <ChevronRight size={14} />
                       </button>
                       <button
                         className="icon-button"
-                        aria-label={`Delete ${r.name}`}
+                        aria-label={t("Delete {name}", { name: r.name })}
                         disabled={busy}
                         onClick={() => remove("rule", r.id, r.name)}
                       >
@@ -840,8 +919,10 @@ export default function App() {
                   ))
                 ) : (
                   <Empty
-                    title="Write once, reuse across projects"
-                    text="Write rules in Markdown and optionally scope them to files or directories."
+                    title={t("Write once, reuse across projects")}
+                    text={t(
+                      "Write rules in Markdown and optionally scope them to files or directories.",
+                    )}
                   />
                 )}
               </section>
@@ -863,7 +944,7 @@ export default function App() {
                           <span
                             className={`badge ${view.status === "Synced" ? "green" : "yellow"}`}
                           >
-                            {view.status}
+                            {translateBackendMessage(t, view.status)}
                           </span>
                         </div>
                         <small>{view.target.path}</small>
@@ -871,8 +952,10 @@ export default function App() {
                     ))
                   ) : (
                     <Empty
-                      title="Add your development repository"
-                      text="Local project connections are stored separately from shared configuration."
+                      title={t("Add your development repository")}
+                      text={t(
+                        "Local project connections are stored separately from shared configuration.",
+                      )}
                     />
                   )}
                 </div>
@@ -883,13 +966,17 @@ export default function App() {
                         <h2>{target.target.name}</h2>
                         <p className="source-label">{target.target.path}</p>
                         {target.error && (
-                          <p className="error-text">{target.error}</p>
+                          <p className="error-text">
+                            {translateBackendMessage(t, target.error)}
+                          </p>
                         )}
                       </div>
                       {!!target.target.installed?.length && (
                         <details>
                           <summary>
-                            Skill versions from the last complete application
+                            {t(
+                              "Skill versions from the last complete application",
+                            )}
                           </summary>
                           {target.target.installed.map((item) => (
                             <p className="hint" key={item.skill.id}>
@@ -900,7 +987,7 @@ export default function App() {
                         </details>
                       )}
                       <Selection
-                        label="Selected presets"
+                        label={t("Selected presets")}
                         items={state.config.presets}
                         selected={targetConfig.presets}
                         change={(presets) =>
@@ -908,9 +995,9 @@ export default function App() {
                         }
                       />
                       <Selection
-                        label="Enabled agent adapters"
+                        label={t("Enabled agent adapters")}
                         items={[
-                          { id: "agents", name: "Generic Agents" },
+                          { id: "agents", name: t("Generic Agents") },
                           { id: "claude", name: "Claude" },
                           { id: "cursor", name: "Cursor" },
                         ]}
@@ -921,11 +1008,11 @@ export default function App() {
                       />
                       <details>
                         <summary>
-                          Excluded skills{" "}
+                          {t("Excluded skills")}{" "}
                           <span>{targetConfig.excluded.length}</span>
                         </summary>
                         <Selection
-                          label="Exclude from this target project"
+                          label={t("Exclude from this target project")}
                           items={state.config.library}
                           selected={targetConfig.excluded}
                           change={(excluded) =>
@@ -947,21 +1034,23 @@ export default function App() {
                             })
                           }
                         >
-                          Save configuration
+                          {t("Save configuration")}
                         </button>
                         <button
                           className="primary"
                           disabled={busy || target.target.repair || targetDirty}
                           onClick={() => showPreview()}
                         >
-                          Preview changes
+                          {t("Preview changes")}
                           <ArrowUpRight size={15} />
                         </button>
                       </div>
                       <p className="hint">
                         {targetDirty
-                          ? "Save the configuration to preview file changes."
-                          : "Skills and rules are applied after you confirm the changes."}
+                          ? t("Save the configuration to preview file changes.")
+                          : t(
+                              "Skills and rules are applied after you confirm the changes.",
+                            )}
                       </p>
                       {target.target.repair && (
                         <button
@@ -970,7 +1059,9 @@ export default function App() {
                           onClick={() => {
                             if (
                               confirm(
-                                "Have you repaired the target project with another tool? You must preview it again before applying changes.",
+                                t(
+                                  "Have you repaired the target project with another tool? You must preview it again before applying changes.",
+                                ),
                               )
                             )
                               void run({
@@ -979,7 +1070,7 @@ export default function App() {
                               });
                           }}
                         >
-                          Resume after manual repair
+                          {t("Resume after manual repair")}
                         </button>
                       )}
                       <button
@@ -989,13 +1080,15 @@ export default function App() {
                           remove("target", target.target.id, target.target.name)
                         }
                       >
-                        Disconnect target project
+                        {t("Disconnect target project")}
                       </button>
                     </>
                   ) : (
                     <Empty
-                      title="Preview before applying"
-                      text="Select a target project to review its presets and installed state."
+                      title={t("Preview before applying")}
+                      text={t(
+                        "Select a target project to review its presets and installed state.",
+                      )}
                     />
                   )}
                 </div>
@@ -1023,22 +1116,28 @@ export default function App() {
                       className={graphMode === "presets" ? "active" : ""}
                       onClick={() => setGraphMode("presets")}
                     >
-                      Shared preset dependencies
+                      {t("Shared preset dependencies")}
                     </button>
                     <button
                       className={graphMode === "targets" ? "active" : ""}
                       onClick={() => setGraphMode("targets")}
                     >
-                      Local target project dependencies
+                      {t("Local target project dependencies")}
                     </button>
                   </div>
                   <div className="graph-focus-control">
                     <span className="muted" role="status">
                       {focusedGraphNode
-                        ? `Focus: ${focusedGraphNode.data.label}`
+                        ? t("Focus: {name}", {
+                            name: String(focusedGraphNode.data.label),
+                          })
                         : graphMode === "targets"
-                          ? "Click a target project, preset, or skill to focus its dependencies"
-                          : "Click a preset or skill to focus its dependencies"}
+                          ? t(
+                              "Click a target project, preset, or skill to focus its dependencies",
+                            )
+                          : t(
+                              "Click a preset or skill to focus its dependencies",
+                            )}
                     </span>
                     {focusedGraphNode && (
                       <button
@@ -1046,7 +1145,7 @@ export default function App() {
                         onClick={() => setGraphFocus("")}
                       >
                         <X size={14} />
-                        Clear focus
+                        {t("Clear focus")}
                       </button>
                     )}
                   </div>
@@ -1065,6 +1164,18 @@ export default function App() {
                     }
                     onPaneClick={() => setGraphFocus("")}
                     edgesFocusable={false}
+                    ariaLabelConfig={{
+                      "node.a11yDescription.default": t(
+                        "Press Enter or Space to focus dependencies. Press Escape to clear focus.",
+                      ),
+                      "node.a11yDescription.keyboardDisabled": t(
+                        "Press Enter or Space to focus dependencies. Press Escape to clear focus.",
+                      ),
+                      "controls.ariaLabel": t("Dependencies graph"),
+                      "controls.zoomIn.ariaLabel": t("Zoom in"),
+                      "controls.zoomOut.ariaLabel": t("Zoom out"),
+                      "controls.fitView.ariaLabel": t("Fit view"),
+                    }}
                     deleteKeyCode={null}
                     fitView
                     nodesDraggable={false}
@@ -1076,30 +1187,37 @@ export default function App() {
                   </ReactFlow>
                 ) : (
                   <Empty
-                    title="Explore your dependencies here"
-                    text="Create a preset, then add skills, rules, or target project references."
+                    title={t("Explore your dependencies here")}
+                    text={t(
+                      "Create a preset, then add skills, rules, or target project references.",
+                    )}
                   />
                 )}
               </section>
             )}
 
-            {page === "settings" && (
+            {page === "settings" && state.root && (
               <section className="settings-panel">
-                <span className="badge green">{state.git_status}</span>
-                <h2>You own your configuration.</h2>
+                <span className="badge green">
+                  {translateBackendMessage(t, state.git_status)}
+                </span>
+                <h2>{t("You own your configuration.")}</h2>
                 <p className="source-label">{state.root}</p>
                 <p>
-                  Your Library, presets, and rules live in this Git repository.
+                  {t(
+                    "Your Library, presets, and rules live in this Git repository.",
+                  )}
                   <br />
-                  Local project connections and the latest skill snapshots stay
-                  in a Git-ignored directory.
+                  {t(
+                    "Local project connections and the latest skill snapshots stay in a Git-ignored directory.",
+                  )}
                 </p>
                 <div className="actions wrap">
                   {[
-                    { operation: "sync", label: "Sync configuration" },
-                    { operation: "reload", label: "Reload" },
-                    { operation: "commit", label: "Retry commit" },
-                    { operation: "push", label: "Push" },
+                    { operation: "sync", label: t("Sync configuration") },
+                    { operation: "reload", label: t("Reload") },
+                    { operation: "commit", label: t("Retry commit") },
+                    { operation: "push", label: t("Push") },
                   ].map((a) => (
                     <button
                       className="secondary"
@@ -1115,15 +1233,16 @@ export default function App() {
                   ))}
                 </div>
                 <p className="hint">
-                  Resolve merge conflicts with your Git tools, then reload the
-                  configuration.
+                  {t(
+                    "Resolve merge conflicts with your Git tools, then reload the configuration.",
+                  )}
                 </p>
                 <button
                   className="text-button"
                   disabled={busy}
                   onClick={() => chooseRepository()}
                 >
-                  Switch configuration repository
+                  {t("Switch configuration repository")}
                   <ChevronRight size={16} />
                 </button>
               </section>
@@ -1131,8 +1250,8 @@ export default function App() {
           </>
         )}
         <footer className="app-footer">
-          <span>Configure · Compose · Apply</span>
-          <span>Local first, changes visible</span>
+          <span>{t("Configure · Compose · Apply")}</span>
+          <span>{t("Local first, changes visible")}</span>
         </footer>
       </main>
 
@@ -1141,20 +1260,24 @@ export default function App() {
           title={
             (
               {
-                source: "Add source skills",
-                "create-preset": "Create preset",
-                "leave-preset": "Leave this preset?",
-                rule: "Edit rule",
-                preview: "Preview before applying",
-                updates: "Adopt skill updates",
-                prepare: "Set up configuration repository",
-                relocate: "Change skill source",
+                source: t("Add source skills"),
+                "create-preset": t("Create preset"),
+                "leave-preset": t("Leave this preset?"),
+                rule: t("Edit rule"),
+                preview: t("Preview before applying"),
+                updates: t("Adopt skill updates"),
+                prepare: t("Set up configuration repository"),
+                relocate: t("Change skill source"),
                 delete:
                   deletion?.kind === "target"
-                    ? "Disconnect target project?"
+                    ? t("Disconnect target project?")
                     : deletion?.kind === "preset-skill"
-                      ? "Remove skill from preset?"
-                      : `Delete ${deletion?.kind}?`,
+                      ? t("Remove skill from preset?")
+                      : deletion?.kind === "skill"
+                        ? t("Delete skill?")
+                        : deletion?.kind === "preset"
+                          ? t("Delete preset?")
+                          : t("Delete rule?"),
               } as Record<string, string>
             )[modal]
           }
@@ -1172,14 +1295,23 @@ export default function App() {
             <div className="form confirmation">
               <p id="delete-description">
                 {deletion.kind === "target"
-                  ? `Disconnect “${deletion.name}” from aicfg? Its repository and installed content will be preserved.`
+                  ? t(
+                      "Disconnect “{name}” from aicfg? Its repository and installed content will be preserved.",
+                      { name: deletion.name },
+                    )
                   : deletion.kind === "preset-skill"
-                    ? `Remove “${deletion.name}” from “${preset.name}”? The skill will remain in your Library. Save the preset to apply this change.`
-                    : `Delete “${deletion.name}” from your configuration? Existing references will be checked before deletion.`}
+                    ? t(
+                        "Remove “{name}” from “{preset}”? The skill will remain in your Library. Save the preset to apply this change.",
+                        { name: deletion.name, preset: preset.name },
+                      )
+                    : t(
+                        "Delete “{name}” from your configuration? Existing references will be checked before deletion.",
+                        { name: deletion.name },
+                      )}
               </p>
               {error && (
                 <p className="error-text" role="alert">
-                  {error}
+                  {translateBackendMessage(t, error)}
                 </p>
               )}
               <div className="actions">
@@ -1189,7 +1321,7 @@ export default function App() {
                   disabled={busy}
                   onClick={close}
                 >
-                  Cancel
+                  {t("Cancel")}
                 </button>
                 <button
                   className="primary destructive"
@@ -1197,10 +1329,10 @@ export default function App() {
                   onClick={confirmDeletion}
                 >
                   {deletion.kind === "target"
-                    ? "Disconnect"
+                    ? t("Disconnect")
                     : deletion.kind === "preset-skill"
-                      ? "Remove skill"
-                      : "Delete"}
+                      ? t("Remove skill")
+                      : t("Delete")}
                 </button>
               </div>
             </div>
@@ -1208,34 +1340,39 @@ export default function App() {
           {modal === "prepare" && (
             <div className="form">
               <label>
-                Configuration repository URL
+                {t("Configuration repository URL")}
                 <input
                   value={prepareUrl}
                   onChange={(e) => setPrepareUrl(e.target.value)}
-                  placeholder="GitHub owner/repo; leave blank to create a local Git repository"
+                  placeholder={t(
+                    "GitHub owner/repo; leave blank to create a local Git repository",
+                  )}
                 />
               </label>
               <p className="hint">
-                Choose an empty directory, or connect an existing configuration
-                repository.
+                {t(
+                  "Choose an empty directory, or connect an existing configuration repository.",
+                )}
               </p>
               <button
                 className="primary"
                 disabled={busy}
                 onClick={() => chooseRepository(true)}
               >
-                Choose directory and set up repository
+                {t("Choose directory and set up repository")}
               </button>
             </div>
           )}
           {modal === "source" && (
             <div className="form">
               <label>
-                Source repository
+                {t("Source repository")}
                 <input
                   value={source}
                   onChange={(e) => setSource(e.target.value)}
-                  placeholder="owner/repo, GitHub URL, or local source repository path"
+                  placeholder={t(
+                    "owner/repo, GitHub URL, or local source repository path",
+                  )}
                 />
               </label>
               <button
@@ -1247,18 +1384,18 @@ export default function App() {
                   setFavorites([]);
                 }}
               >
-                Discover available skills
+                {t("Discover available skills")}
                 <ArrowUpRight size={15} />
               </button>
               <Selection
-                label="Choose skills to add to your Library"
+                label={t("Choose skills to add to your Library")}
                 items={candidates.map((c) => c.skill)}
                 selected={favorites}
                 change={setFavorites}
               />
               {candidates.length > 0 && (
                 <details>
-                  <summary>Read source skill documentation</summary>
+                  <summary>{t("Read source skill documentation")}</summary>
                   {candidates.map((c) => (
                     <article key={c.skill.id}>
                       <h3>{c.skill.name}</h3>
@@ -1282,7 +1419,7 @@ export default function App() {
                   }}
                 >
                   <Check size={15} />
-                  Add selected skills
+                  {t("Add selected skills")}
                 </button>
               </div>
             </div>
@@ -1290,20 +1427,20 @@ export default function App() {
           {modal === "relocate" && skill && (
             <div className="form">
               <label>
-                Source repository
+                {t("Source repository")}
                 <input
                   value={source}
                   onChange={(e) => setSource(e.target.value)}
                 />
               </label>
               <label>
-                Skill directory in the source repository
+                {t("Skill directory in the source repository")}
                 <input defaultValue={skill.skill_path} id="relocate-path" />
               </label>
               <p className="hint">
-                Keep the Library identity and preset references. Check for
-                updates and preview changes before applying the new content to
-                target projects.
+                {t(
+                  "Keep the Library identity and preset references. Check for updates and preview changes before applying the new content to target projects.",
+                )}
               </p>
               <button
                 className="primary"
@@ -1323,7 +1460,7 @@ export default function App() {
                   }
                 }}
               >
-                Save source location
+                {t("Save source location")}
               </button>
             </div>
           )}
@@ -1339,18 +1476,19 @@ export default function App() {
           {modal === "leave-preset" && pendingPage && (
             <div className="form preset-create">
               <p>
-                You have unsaved changes. Discard them to leave this page. The
-                saved preset will remain unchanged.
+                {t(
+                  "You have unsaved changes. Discard them to leave this page. The saved preset will remain unchanged.",
+                )}
               </p>
               <div className="actions">
                 <button className="secondary" onClick={close}>
-                  Keep editing
+                  {t("Keep editing")}
                 </button>
                 <button
                   className="primary"
                   onClick={() => completeNavigation(pendingPage)}
                 >
-                  Discard changes
+                  {t("Discard changes")}
                 </button>
               </div>
             </div>
@@ -1373,7 +1511,7 @@ export default function App() {
               }}
             >
               <label>
-                Rule name
+                {t("Rule name")}
                 <input
                   required
                   value={rule.name}
@@ -1381,7 +1519,7 @@ export default function App() {
                 />
               </label>
               <label>
-                Scope
+                {t("Scope")}
                 <input
                   value={rule.paths.join(", ")}
                   onChange={(e) =>
@@ -1393,12 +1531,14 @@ export default function App() {
                         .filter(Boolean),
                     })
                   }
-                  placeholder="Leave blank for the entire project, or use a glob such as src/**/*.tsx"
+                  placeholder={t(
+                    "Leave blank for the entire project, or use a glob such as src/**/*.tsx",
+                  )}
                 />
               </label>
               <div className="editor-split">
                 <label>
-                  Markdown content
+                  {t("Markdown content")}
                   <textarea
                     required
                     rows={14}
@@ -1407,13 +1547,13 @@ export default function App() {
                   />
                 </label>
                 <div className="editor-preview">
-                  <span className="muted">Preview</span>
+                  <span className="muted">{t("Preview")}</span>
                   <Markdown text={rule.body} />
                 </div>
               </div>
               <div className="actions">
                 <button className="primary" disabled={busy} type="submit">
-                  Save rule
+                  {t("Save rule")}
                 </button>
               </div>
             </form>
@@ -1421,11 +1561,12 @@ export default function App() {
           {modal === "updates" && (
             <div className="form">
               <p>
-                Adopting source versions updates shared configuration. Preview
-                and confirm changes for each target project separately.
+                {t(
+                  "Adopting source versions updates shared configuration. Preview and confirm changes for each target project separately.",
+                )}
               </p>
               <Selection
-                label="Skills with content changes"
+                label={t("Skills with content changes")}
                 items={updates}
                 selected={updateIds}
                 change={setUpdateIds}
@@ -1454,7 +1595,7 @@ export default function App() {
                     close();
                 }}
               >
-                Adopt selected updates
+                {t("Adopt selected updates")}
               </button>
             </div>
           )}
@@ -1463,8 +1604,9 @@ export default function App() {
               {Object.keys(preview.resolution.conflicts).length > 0 ? (
                 <>
                   <p>
-                    Reapplying clears previous version choices. Choose a version
-                    for each skill below.
+                    {t(
+                      "Reapplying clears previous version choices. Choose a version for each skill below.",
+                    )}
                   </p>
                   {Object.entries(preview.resolution.conflicts).map(
                     ([id, versions]) => (
@@ -1476,7 +1618,7 @@ export default function App() {
                             setChoices({ ...choices, [id]: e.target.value })
                           }
                         >
-                          <option value="">Choose a version</option>
+                          <option value="">{t("Choose a version")}</option>
                           {versions.map((v) => (
                             <option key={v} value={v}>
                               {v.slice(0, 12)}
@@ -1496,16 +1638,22 @@ export default function App() {
                     }
                     onClick={() => showPreview(choices)}
                   >
-                    Refresh preview
+                    {t("Refresh preview")}
                   </button>
                 </>
               ) : (
                 <>
                   <div className="preview-summary">
-                    <strong>{preview.changes.length} file changes</strong>
+                    <strong>
+                      {t("{count} file changes", {
+                        count: preview.changes.length,
+                      })}
+                    </strong>
                     <span>
-                      {preview.resolution.skills.length} skills ·{" "}
-                      {preview.resolution.rules.length} rules
+                      {t("{skills} skills · {rules} rules", {
+                        skills: preview.resolution.skills.length,
+                        rules: preview.resolution.rules.length,
+                      })}
                     </span>
                   </div>
                   {preview.changes.length > 0 ? (
@@ -1520,7 +1668,7 @@ export default function App() {
                             <span
                               className={`badge ${c.conflict ? "yellow" : ""}`}
                             >
-                              {c.kind}
+                              {translateBackendMessage(t, c.kind)}
                             </span>
                             <span>{c.path}</span>
                           </button>
@@ -1530,7 +1678,7 @@ export default function App() {
                         <h3>{preview.changes[changeIndex]?.path}</h3>
                         {preview.changes[changeIndex]?.conflict && (
                           <label className="conflict-choice">
-                            Existing content
+                            {t("Existing content")}
                             <select
                               value={
                                 decisions[preview.changes[changeIndex].path] ??
@@ -1544,30 +1692,32 @@ export default function App() {
                                 })
                               }
                             >
-                              <option value="">Choose an option</option>
+                              <option value="">{t("Choose an option")}</option>
                               <option value="takeover">
-                                Take ownership and keep current content
+                                {t("Take ownership and keep current content")}
                               </option>
                               <option value="replace">
-                                Replace with preset content
+                                {t("Replace with preset content")}
                               </option>
-                              <option value="skip">Skip this time</option>
+                              <option value="skip">
+                                {t("Skip this time")}
+                              </option>
                             </select>
                           </label>
                         )}
                         <div className="diff-columns">
                           <div>
-                            <small>Current content</small>
+                            <small>{t("Current content")}</small>
                             <pre>
                               {preview.changes[changeIndex]?.before ||
-                                "(not present)"}
+                                t("(not present)")}
                             </pre>
                           </div>
                           <div>
-                            <small>Desired content</small>
+                            <small>{t("Desired content")}</small>
                             <pre>
                               {preview.changes[changeIndex]?.after ||
-                                "(removed)"}
+                                t("(removed)")}
                             </pre>
                           </div>
                         </div>
@@ -1575,8 +1725,9 @@ export default function App() {
                     </div>
                   ) : (
                     <p>
-                      File contents already match. Confirm to record the
-                      application state.
+                      {t(
+                        "File contents already match. Confirm to record the application state.",
+                      )}
                     </p>
                   )}
                   <div className="actions">
@@ -1585,7 +1736,7 @@ export default function App() {
                       disabled={busy}
                       onClick={close}
                     >
-                      Cancel and keep current state
+                      {t("Cancel and keep current state")}
                     </button>
                     <button
                       className="primary"
@@ -1605,13 +1756,14 @@ export default function App() {
                           close();
                       }}
                     >
-                      Confirm and apply changes
+                      {t("Confirm and apply changes")}
                       <Check size={15} />
                     </button>
                   </div>
                   <p className="hint">
-                    Confirmation reapplies the entire preset. Local edits will
-                    be replaced as shown in the preview.
+                    {t(
+                      "Confirmation reapplies the entire preset. Local edits will be replaced as shown in the preview.",
+                    )}
                   </p>
                 </>
               )}

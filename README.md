@@ -13,6 +13,7 @@ Keep shared configuration in your own Git repository. Collect skills in a Librar
 - Preview file changes, resolve version and ownership conflicts, and preserve handwritten instructions.
 - Track installed versions, local edits, pending updates, and repair states.
 - Save, commit, and push shared configuration using your existing Git identity and authentication.
+- Use the interface in English, Simplified Chinese, or Japanese, or follow your system language from Settings.
 
 The current implementation uses Rust, Tauri 2, React, and TypeScript. macOS is the supported desktop platform for this first release. See the [roadmap](docs/roadmap.md) for remaining work and current limitations.
 

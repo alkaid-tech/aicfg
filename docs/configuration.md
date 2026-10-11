@@ -2,6 +2,16 @@
 
 aicfg separates shared definitions, local application state, and target project settings. Create and edit them through the app where possible so validation and Git handling stay consistent.
 
+## Application language
+
+Open **Settings → Language** to choose **English**, **简体中文** (Simplified Chinese), **日本語** (Japanese), or **Follow system language**. Changes take effect immediately, including existing status messages and dialogs. Settings are available before connecting a configuration repository.
+
+The default is **Follow system language**. aicfg uses the desktop webview's ordered system language preferences, choosing the first supported English, Chinese, or Japanese language. Regional variants such as `en-GB`, `zh-CN`, and `ja-JP` are recognized. Chinese variants currently use Simplified Chinese translations. If none of the preferred languages is supported, aicfg uses English.
+
+The choice is saved per device in the app webview's local storage under `aicfg.language`, with values `system`, `en`, `zh`, and `ja`. It persists across restarts and configuration repository switches, and is not committed to shared configuration or target project settings. When following the system, language changes are detected on a webview language-change event or when the app regains focus.
+
+User-defined names, skill documentation, rule bodies, and file previews retain their original content. External Git and operating-system diagnostics remain in their original language.
+
 ## Shared configuration repository
 
 ```text
