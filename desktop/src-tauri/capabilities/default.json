@@ -1,0 +1,6 @@
+{
+  "identifier": "main",
+  "description": "Select local configuration repository and target project directories",
+  "windows": ["main"],
+  "permissions": ["core:default", "dialog:allow-open"]
+}
