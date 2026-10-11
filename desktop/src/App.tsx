@@ -462,7 +462,14 @@ export default function App() {
   };
 
   return (
-    <div className="app-shell" aria-busy={busy}>
+    <div
+      className={
+        page === "library" && state.root
+          ? "app-shell library-shell"
+          : "app-shell"
+      }
+      aria-busy={busy}
+    >
       <aside className="sidebar">
         <div className="brand">
           <span className="brand-mark">a</span>
@@ -497,7 +504,11 @@ export default function App() {
           </div>
         </div>
       </aside>
-      <main>
+      <main
+        className={
+          page === "library" && state.root ? "library-page" : undefined
+        }
+      >
         <header className="page-header">
           <div>
             <p className="eyebrow">
@@ -690,7 +701,7 @@ export default function App() {
         ) : (
           <>
             {page === "library" && (
-              <section className="split-panel">
+              <section className="split-panel library-panel">
                 <div className="list-panel">
                   <div className="list-toolbar">
                     <label className="search">
@@ -706,53 +717,55 @@ export default function App() {
                       {t("{count} skills", { count: library.length })}
                     </span>
                   </div>
-                  {library.length ? (
-                    library.map((item) => (
-                      <div
-                        className={`skill-row ${selectedSkill === item.id ? "selected" : ""}`}
-                        key={item.id}
-                      >
-                        <button
-                          className="row-main"
-                          disabled={busy}
-                          onClick={async () => {
-                            setSelectedSkill(item.id);
-                            const r = await run({
-                              action: "read_skill",
-                              data: { id: item.id },
-                            });
-                            setMarkdown(r?.markdown ?? null);
-                          }}
+                  <div className="skill-list">
+                    {library.length ? (
+                      library.map((item) => (
+                        <div
+                          className={`skill-row ${selectedSkill === item.id ? "selected" : ""}`}
+                          key={item.id}
                         >
-                          <div className="row-title">
-                            <BookOpen size={16} />
-                            <strong>{item.name}</strong>
-                          </div>
-                          <p>{item.description || t("Source skill")}</p>
-                          <small>
-                            {item.source
-                              .replace("https://github.com/", "")
-                              .replace(".git", "")}
-                          </small>
-                        </button>
-                        <button
-                          className="icon-button"
-                          aria-label={t("Delete {name}", { name: item.name })}
-                          disabled={busy}
-                          onClick={() => remove("skill", item.id, item.name)}
-                        >
-                          <Trash2 size={14} />
-                        </button>
-                      </div>
-                    ))
-                  ) : (
-                    <Empty
-                      title={t("Add your first skill")}
-                      text={t("Choose skills from a source repository.")}
-                    />
-                  )}
+                          <button
+                            className="row-main"
+                            disabled={busy}
+                            onClick={async () => {
+                              setSelectedSkill(item.id);
+                              const r = await run({
+                                action: "read_skill",
+                                data: { id: item.id },
+                              });
+                              setMarkdown(r?.markdown ?? null);
+                            }}
+                          >
+                            <div className="row-title">
+                              <BookOpen size={16} />
+                              <strong>{item.name}</strong>
+                            </div>
+                            <p>{item.description || t("Source skill")}</p>
+                            <small>
+                              {item.source
+                                .replace("https://github.com/", "")
+                                .replace(".git", "")}
+                            </small>
+                          </button>
+                          <button
+                            className="icon-button"
+                            aria-label={t("Delete {name}", { name: item.name })}
+                            disabled={busy}
+                            onClick={() => remove("skill", item.id, item.name)}
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
+                      ))
+                    ) : (
+                      <Empty
+                        title={t("Add your first skill")}
+                        text={t("Choose skills from a source repository.")}
+                      />
+                    )}
+                  </div>
                 </div>
-                <div className="detail-panel">
+                <div className="detail-panel" key={selectedSkill}>
                   {skill ? (
                     <>
                       <div className="detail-heading">
