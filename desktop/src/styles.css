@@ -597,6 +597,13 @@ summary span {
   color: #ac7663;
   margin-top: 20px;
 }
+.primary.destructive {
+  background: #974b3f;
+  border-color: #974b3f;
+}
+.primary.destructive:hover {
+  background: #803d33;
+}
 .graph-panel {
   display: flex;
   flex-direction: column;
@@ -765,6 +772,16 @@ summary span {
   line-height: 1.8;
 }
 .preset-create .actions {
+  justify-content: flex-end;
+}
+.confirmation > p {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.confirmation .error-text {
+  margin-top: 16px;
+}
+.confirmation .actions {
   justify-content: flex-end;
 }
 .sr-only {

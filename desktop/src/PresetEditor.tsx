@@ -130,6 +130,7 @@ export function PresetDetail({
   busy,
   dirty,
   onChange,
+  onRemoveSkill,
   onSave,
   onReset,
   onBack,
@@ -139,6 +140,7 @@ export function PresetDetail({
   busy: boolean;
   dirty: boolean;
   onChange: (preset: Preset) => void;
+  onRemoveSkill: (id: string, name: string) => void;
   onSave: () => void;
   onReset: () => void;
   onBack: () => void;
@@ -191,14 +193,7 @@ export function PresetDetail({
                         className="icon-button"
                         disabled={busy}
                         aria-label={`Remove ${name}`}
-                        onClick={() =>
-                          onChange({
-                            ...preset,
-                            skills: preset.skills.filter(
-                              (s) => s.skill_id !== ref.skill_id,
-                            ),
-                          })
-                        }
+                        onClick={() => onRemoveSkill(ref.skill_id, name)}
                       >
                         <Trash2 size={15} />
                       </button>
