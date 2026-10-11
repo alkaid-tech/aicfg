@@ -685,6 +685,10 @@ summary span {
   min-height: 0;
   height: auto !important;
 }
+.language-settings {
+  width: min(100%, 480px);
+  margin-top: 32px;
+}
 .settings-panel {
   padding: 40px 5px;
   max-width: 760px;

@@ -4,6 +4,8 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { invoke } from "@tauri-apps/api/core";
 import App from "./App";
+import { I18nProvider } from "./I18nProvider";
+import { createTranslator, LANGUAGE_STORAGE_KEY } from "./i18n";
 import type { Response, State } from "./types";
 
 vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn() }));
@@ -108,6 +110,12 @@ function dialog(): HTMLDialogElement {
 }
 
 beforeEach(async () => {
+  const preferences = new Map<string, string>();
+  vi.stubGlobal("localStorage", {
+    getItem: (key: string) => preferences.get(key) ?? null,
+    setItem: (key: string, value: string) => preferences.set(key, value),
+    clear: () => preferences.clear(),
+  });
   vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
   vi.stubGlobal("__TAURI_INTERNALS__", {});
   HTMLDialogElement.prototype.showModal = function () {
@@ -128,6 +136,7 @@ beforeEach(async () => {
 afterEach(async () => {
   await act(async () => root.unmount());
   container.remove();
+  localStorage.clear();
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
 });
@@ -303,5 +312,109 @@ describe("Deletion request state", () => {
     expect(button("Delete Code review").disabled).toBe(false);
     await click("Cancel", dialog());
     expect(container.querySelector("dialog")).toBeNull();
+  });
+});
+
+describe.each([
+  {
+    locale: "zh" as const,
+    titles: ["删除技能？", "删除预设？", "删除规则？", "断开目标项目？"],
+    deletion: "从配置中删除“Code review”？删除前将检查现有引用。",
+    target: "将“Example project”与 aicfg 断开连接？其仓库和已安装内容将保留。",
+    removalTitle: "从预设中移除技能？",
+    removal:
+      "从“Team preset”中移除“Code review”？该技能将保留在技能库中。保存预设以应用此更改。",
+    error: "仍有预设引用此条目，请先移除引用",
+  },
+  {
+    locale: "ja" as const,
+    titles: [
+      "スキルを削除しますか？",
+      "プリセットを削除しますか？",
+      "ルールを削除しますか？",
+      "対象プロジェクトの接続を解除しますか？",
+    ],
+    deletion:
+      "設定から「Code review」を削除しますか？削除前に既存の参照を確認します。",
+    target:
+      "「Example project」と aicfg の接続を解除しますか？リポジトリとインストール済みの内容は保持されます。",
+    removalTitle: "プリセットからスキルを削除しますか？",
+    removal:
+      "「Team preset」から「Code review」を削除しますか？スキルはライブラリに残ります。この変更を適用するにはプリセットを保存してください。",
+    error: "プリセットがこの項目を参照しています。先に参照を削除してください",
+  },
+])("Localized deletion confirmations ($locale)", (language) => {
+  const t = createTranslator(language.locale);
+
+  beforeEach(async () => {
+    localStorage.setItem(LANGUAGE_STORAGE_KEY, language.locale);
+    await act(async () =>
+      root.render(
+        <I18nProvider>
+          <App />
+        </I18nProvider>,
+      ),
+    );
+    vi.mocked(invoke).mockClear();
+  });
+
+  it.each(deletions)(
+    "translates $name confirmation and preserves the item name",
+    async (entry) => {
+      if (entry.page === "Presets") await click(t("Presets"));
+      if (entry.page === "Rules") await click(t("Rules"));
+      if (entry.page === "Target projects") {
+        await click(t("Target projects"));
+        await click(`Example project${t("Synced")}/test/project`);
+      }
+      await click(
+        entry.page === "Target projects"
+          ? t("Disconnect target project")
+          : t("Delete {name}", { name: entry.itemName }),
+      );
+      expect(dialog().querySelector("h2")?.textContent).toBe(
+        language.titles[deletions.indexOf(entry)],
+      );
+      expect(dialog().querySelector("p")?.textContent).toContain(
+        entry.itemName,
+      );
+      if (!entry.page)
+        expect(dialog().querySelector("p")?.textContent).toBe(
+          language.deletion,
+        );
+      if (entry.page === "Target projects")
+        expect(dialog().querySelector("p")?.textContent).toBe(language.target);
+      expect(document.activeElement).toBe(button(t("Cancel"), dialog()));
+      expect(invoke).not.toHaveBeenCalled();
+      await click(t("Cancel"), dialog());
+      expect(container.querySelector("dialog")).toBeNull();
+      expect(invoke).not.toHaveBeenCalled();
+    },
+  );
+
+  it("translates removal without changing skill or preset names", async () => {
+    await click(t("Presets"));
+    await click(t("View details"));
+    await click(t("Remove {name}", { name: "Code review" }));
+    expect(dialog().querySelector("h2")?.textContent).toBe(
+      language.removalTitle,
+    );
+    expect(dialog().querySelector("p")?.textContent).toBe(language.removal);
+    await click(t("Remove skill"), dialog());
+    expect(container.querySelectorAll(".preset-skill")).toHaveLength(1);
+    expect(button(t("Save changes")).disabled).toBe(false);
+    expect(invoke).not.toHaveBeenCalled();
+  });
+
+  it("translates a failed deletion inside the confirmation", async () => {
+    vi.mocked(invoke).mockRejectedValueOnce(
+      "A preset still references this item. Remove its references first",
+    );
+    await click(t("Delete {name}", { name: "Code review" }));
+    await click(t("Delete"), dialog());
+    expect(dialog().querySelector('[role="alert"]')?.textContent).toBe(
+      language.error,
+    );
+    expect(button(t("Cancel"), dialog()).disabled).toBe(false);
   });
 });

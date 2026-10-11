@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { dependencyGraph, focusDependencyGraph } from "./graph";
 import type { State } from "./types";
+import { createTranslator } from "./i18n";
 const state: State = {
   root: "/config",
   git_status: "Committed locally",
@@ -48,6 +49,25 @@ const state: State = {
   ],
 };
 describe("dependency graph visibility", () => {
+  it("localizes statuses, missing references, and focus descriptions while preserving user names", () => {
+    const fixture = structuredClone(state);
+    fixture.targets[0].target.name = "My 日本語 project";
+    const t = createTranslator("ja");
+    const graph = dependencyGraph(fixture, "targets", t);
+    const target = graph.nodes.find((node) => node.id === "target:local");
+    expect(target?.data.label).toBe("My 日本語 project · 同期が必要");
+    expect(target?.ariaLabel).toBe(
+      "対象プロジェクト My 日本語 project · 同期が必要",
+    );
+    expect(
+      graph.nodes.find((node) => node.id === "skill:missing")?.data.label,
+    ).toBe("この参照先は存在しません。別の項目を選択してください。");
+    const focused = focusDependencyGraph(graph, "target:local", t);
+    expect(
+      focused.nodes.find((node) => node.id === "target:local")?.ariaLabel,
+    ).toContain("フォーカス中");
+    expect(fixture.targets[0].status).toBe("Needs syncing");
+  });
   const withLibrary = (): State => {
     const fixture = structuredClone(state);
     fixture.config.library = ["unused-before", "used", "unused-after"].map(
