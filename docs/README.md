@@ -13,6 +13,7 @@ aicfg manages agent skills and rules through reusable presets. Its shared config
 
 - [Architecture](architecture.md): modules and the preview-to-application workflow.
 - [Contributing](../CONTRIBUTING.md): issues, pull requests, commits, and licensing.
+- [Releases](releases.md): automatic versioning, macOS packaging, and recovery.
 - [Roadmap and limitations](roadmap.md): supported behavior and planned work.
 
 ## Architecture decisions

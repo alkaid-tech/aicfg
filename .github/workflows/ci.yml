@@ -13,6 +13,14 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  release-metadata:
+    name: Release version consistency
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+      - name: Check desktop manifests and lockfiles
+        run: python3 scripts/check-release-version.py
+
   frontend:
     name: Frontend tests and build
     runs-on: ubuntu-24.04

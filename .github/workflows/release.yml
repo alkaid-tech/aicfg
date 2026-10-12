@@ -1,0 +1,150 @@
+name: Release
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Existing draft release tag to resume (leave empty to update the release PR)"
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.repository }}
+  cancel-in-progress: false
+
+jobs:
+  release-please:
+    name: Prepare release
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
+    outputs:
+      release_created: ${{ steps.release.outputs['desktop--release_created'] || steps.resume.outputs.release_created }}
+      tag_name: ${{ steps.release.outputs['desktop--tag_name'] || steps.resume.outputs.tag_name }}
+    steps:
+      - name: Update release PR or create draft release
+        if: github.event_name != 'workflow_dispatch' || inputs.tag == ''
+        id: release
+        uses: googleapis/release-please-action@v4
+        with:
+          token: ${{ secrets.RELEASE_PLEASE_TOKEN || github.token }}
+          target-branch: main
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json
+      - name: Resume an existing draft release
+        if: github.event_name == 'workflow_dispatch' && inputs.tag != ''
+        id: resume
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ inputs.tag }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ ! "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::Expected a release tag in vMAJOR.MINOR.PATCH format."
+            exit 1
+          fi
+          if [[ "$(gh release view "$RELEASE_TAG" --json isDraft --jq '.isDraft')" != true ]]; then
+            echo "::error::Only draft releases can be resumed."
+            exit 1
+          fi
+          echo "release_created=true" >> "$GITHUB_OUTPUT"
+          echo "tag_name=$RELEASE_TAG" >> "$GITHUB_OUTPUT"
+
+  macos:
+    name: Build and publish macOS Universal release
+    needs: release-please
+    if: needs.release-please.outputs.release_created == 'true'
+    runs-on: macos-26
+    timeout-minutes: 60
+    permissions:
+      contents: write
+    defaults:
+      run:
+        working-directory: desktop
+        shell: bash
+    env:
+      RELEASE_TAG: ${{ needs.release-please.outputs.tag_name }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.release-please.outputs.tag_name }}
+      - name: Check release versions
+        run: python3 ../scripts/check-release-version.py --tag "$RELEASE_TAG"
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: desktop/package-lock.json
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-darwin,x86_64-apple-darwin
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: desktop/src-tauri -> target
+          key: release-universal
+      - name: Install frontend dependencies
+        run: npm ci
+      - name: Run frontend tests
+        run: npm test
+      - name: Check Rust formatting, tests, and lint
+        working-directory: desktop/src-tauri
+        run: |
+          cargo fmt --all --check
+          cargo test --locked --no-default-features
+          cargo clippy --locked --all-targets --no-default-features -- -D warnings
+      - name: Build Universal application and DMG
+        run: CI=true npm run bundle -- --target universal-apple-darwin --bundles app,dmg --ci -- --locked
+      - name: Verify and package release assets
+        run: |
+          set -euo pipefail
+          version="${RELEASE_TAG#v}"
+          bundle_dir=src-tauri/target/universal-apple-darwin/release/bundle
+          app="$bundle_dir/macos/aicfg.app"
+          lipo "$app/Contents/MacOS/aicfg-desktop" -verify_arch arm64
+          lipo "$app/Contents/MacOS/aicfg-desktop" -verify_arch x86_64
+          bundle_version="$(plutil -extract CFBundleShortVersionString raw -o - "$app/Contents/Info.plist")"
+          if [[ "$bundle_version" != "$version" ]]; then
+            echo "::error::Built application version does not match the release tag."
+            exit 1
+          fi
+          dmgs=("$bundle_dir"/dmg/*.dmg)
+          if [[ ${#dmgs[@]} != 1 || ! -f "${dmgs[0]}" ]]; then
+            echo "::error::Expected exactly one DMG."
+            exit 1
+          fi
+          mkdir -p release
+          ditto -c -k --keepParent "$app" "release/aicfg_${version}_universal.app.zip"
+          cp "${dmgs[0]}" "release/aicfg_${version}_universal.dmg"
+          cd release
+          shasum -a 256 ./*.zip ./*.dmg > SHA256SUMS
+      - name: Save release assets
+        uses: actions/upload-artifact@v7
+        with:
+          name: aicfg-${{ env.RELEASE_TAG }}-macos-universal
+          path: desktop/release/*
+          if-no-files-found: error
+          overwrite: true
+          retention-days: 14
+      - name: Upload assets and publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          if [[ "$(gh release view "$RELEASE_TAG" --json isDraft --jq '.isDraft')" != true ]]; then
+            echo "::error::Refusing to modify an already published release."
+            exit 1
+          fi
+          gh release upload "$RELEASE_TAG" release/* --clobber
+          gh release edit "$RELEASE_TAG" --draft=false --latest
