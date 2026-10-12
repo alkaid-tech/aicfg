@@ -14,3 +14,4 @@ out/
 __pycache__/
 *.py[cod]
 /desktop/src-tauri/gen/
+/desktop/release/

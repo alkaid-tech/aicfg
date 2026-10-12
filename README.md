@@ -37,7 +37,7 @@ cd desktop
 npm run bundle
 ```
 
-The macOS bundle is generated at `desktop/src-tauri/target/release/bundle/macos/aicfg.app`. Formal signing and distribution are planned.
+The macOS bundle is generated at `desktop/src-tauri/target/release/bundle/macos/aicfg.app`. The [release workflow](docs/releases.md) automatically proposes versions and publishes macOS Universal downloads after the release PR is merged. Formal signing and notarization are planned.
 
 ## First use
 
@@ -54,6 +54,7 @@ Shared configuration is committed and pushed when it is saved. Changes to target
 Start with the [documentation index](docs/README.md), or jump to:
 
 - [Development setup](docs/development.md)
+- [Release workflow and version policy](docs/releases.md)
 - [User guide](docs/usage.md)
 - [Configuration reference](docs/configuration.md)
 - [Architecture](docs/architecture.md)

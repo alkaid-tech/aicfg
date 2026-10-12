@@ -39,6 +39,8 @@ docs: clarify configuration repository setup
 
 Group changes by logical purpose. Keep directly related implementation, tests, and documentation together; commit unrelated work separately. Explain breaking changes and migration requirements in a `BREAKING CHANGE:` footer.
 
+Release Please uses these messages to propose release versions. Use a Conventional Commit PR title when squash merging, and declare breaking changes explicitly. See the [release policy](docs/releases.md#version-policy) for version increments and the release PR workflow.
+
 ## Licensing
 
 aicfg is licensed under Apache-2.0. Contributions submitted for inclusion follow that license unless explicitly stated otherwise, as described in its contribution terms. Include the applicable license and attribution when adding third-party code or assets.

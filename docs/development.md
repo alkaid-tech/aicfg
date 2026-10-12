@@ -79,3 +79,5 @@ cargo test --locked --no-default-features real_installer_roundtrip -- --ignored
 ```
 
 The GitHub Actions workflow runs frontend verification with Node.js 22 on Ubuntu 24.04 and Rust core plus desktop checks on macOS 26 (arm64). Runner OS versions are pinned to avoid automatic image migrations.
+
+CI also checks that the application manifests and lockfiles have matching versions. See the [release guide](releases.md) for automatic versioning and Universal macOS packaging.
