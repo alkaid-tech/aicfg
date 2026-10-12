@@ -141,6 +141,124 @@ afterEach(async () => {
   vi.unstubAllGlobals();
 });
 
+describe("Skill detail loading", () => {
+  async function selectSkill(index: number) {
+    await act(async () => {
+      container
+        .querySelectorAll<HTMLButtonElement>(".skill-row .row-main")
+        [index].click();
+    });
+  }
+
+  it("keeps loading inside the detail panel and clears the previous skill document", async () => {
+    vi.mocked(invoke).mockResolvedValueOnce({
+      ...response(),
+      markdown: "## First skill document",
+    });
+    await selectSkill(0);
+    expect(container.querySelector(".markdown")?.textContent).toContain(
+      "First skill document",
+    );
+
+    let finish!: (value: Response) => void;
+    vi.mocked(invoke).mockImplementationOnce(
+      () => new Promise<Response>((resolve) => (finish = resolve)),
+    );
+    await selectSkill(1);
+    expect(invoke).toHaveBeenLastCalledWith("dispatch", {
+      request: { action: "read_skill", data: { id: "skill-other-review" } },
+    });
+    expect(
+      container.querySelector(".app-shell")?.getAttribute("aria-busy"),
+    ).toBe("false");
+    expect(container.querySelector("main > .busy")).toBeNull();
+    expect(button("Presets").disabled).toBe(false);
+    expect(
+      container.querySelector(".detail-panel")?.getAttribute("aria-busy"),
+    ).toBe("true");
+    expect(
+      container
+        .querySelector(".detail-panel [role='status']")
+        ?.getAttribute("aria-label"),
+    ).toBe("Loading skill…");
+    expect(container.querySelector(".markdown")).toBeNull();
+    expect(container.querySelector(".detail-heading")?.textContent).toContain(
+      "cccccccc",
+    );
+
+    await act(async () =>
+      finish({ ...response(), markdown: "## Second skill document" }),
+    );
+    expect(
+      container.querySelector(".detail-panel")?.getAttribute("aria-busy"),
+    ).toBe("false");
+    expect(container.querySelector(".skill-loading")).toBeNull();
+    expect(container.querySelector(".markdown")?.textContent).toContain(
+      "Second skill document",
+    );
+  });
+
+  it.each(["resolve", "reject"] as const)(
+    "ignores an older read that completes with %s after a newer selection",
+    async (completion) => {
+      const pending: {
+        resolve: (value: Response) => void;
+        reject: (reason: string) => void;
+      }[] = [];
+      vi.mocked(invoke).mockImplementation(
+        () =>
+          new Promise<Response>((resolve, reject) =>
+            pending.push({ resolve, reject }),
+          ),
+      );
+      await selectSkill(0);
+      await selectSkill(1);
+      await act(async () =>
+        pending[1].resolve({ ...response(), markdown: "## Latest selection" }),
+      );
+      await act(async () => {
+        if (completion === "resolve")
+          pending[0].resolve({
+            ...response(),
+            markdown: "## Outdated selection",
+          });
+        else pending[0].reject("An outdated read failed");
+      });
+      expect(container.querySelector(".markdown")?.textContent).toBe(
+        "Latest selection",
+      );
+      expect(
+        container.querySelector(".detail-panel")?.getAttribute("aria-busy"),
+      ).toBe("false");
+      expect(container.querySelector("[role='alert']")).toBeNull();
+    },
+  );
+
+  it("shows read failures inside the detail panel and supports retrying", async () => {
+    vi.mocked(invoke).mockRejectedValueOnce(
+      "Source content fingerprint does not match",
+    );
+    await selectSkill(0);
+    const error = container.querySelector(".detail-panel [role='alert']");
+    expect(error?.textContent).toContain("Could not read the skill content.");
+    expect(error?.textContent).toContain(
+      "Source content fingerprint does not match",
+    );
+    expect(container.querySelector("main > .banner.error")).toBeNull();
+    expect(container.querySelector(".skill-loading")).toBeNull();
+
+    vi.mocked(invoke).mockResolvedValueOnce({
+      ...response(),
+      markdown: "## Recovered document",
+    });
+    await selectSkill(0);
+    expect(container.querySelector(".detail-panel [role='alert']")).toBeNull();
+    expect(container.querySelector(".markdown")?.textContent).toBe(
+      "Recovered document",
+    );
+  });
+});
+
 const deletions = [
   {
     name: "Library skill",

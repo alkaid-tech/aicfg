@@ -244,6 +244,9 @@ export default function App() {
   const [query, setQuery] = useState(""),
     [selectedSkill, setSelectedSkill] = useState(""),
     [markdown, setMarkdown] = useState<string | null>("");
+  const [skillLoading, setSkillLoading] = useState(false),
+    [skillReadError, setSkillReadError] = useState("");
+  const skillReadRequest = useRef(0);
   const [modal, setModal] = useState(""),
     [source, setSource] = useState(""),
     [candidates, setCandidates] = useState<Candidate[]>([]),
@@ -310,6 +313,23 @@ export default function App() {
       return undefined;
     } finally {
       setBusy(false);
+    }
+  }
+  async function readSkill(id: string) {
+    const request = ++skillReadRequest.current;
+    setSelectedSkill(id);
+    setSkillLoading(true);
+    setSkillReadError("");
+    setMarkdown(null);
+    try {
+      const result = await invoke<Response>("dispatch", {
+        request: { action: "read_skill", data: { id } },
+      });
+      if (request === skillReadRequest.current) setMarkdown(result.markdown);
+    } catch (e) {
+      if (request === skillReadRequest.current) setSkillReadError(String(e));
+    } finally {
+      if (request === skillReadRequest.current) setSkillLoading(false);
     }
   }
   useEffect(() => {
@@ -462,7 +482,14 @@ export default function App() {
   };
 
   return (
-    <div className="app-shell" aria-busy={busy}>
+    <div
+      className={
+        page === "library" && state.root
+          ? "app-shell library-shell"
+          : "app-shell"
+      }
+      aria-busy={busy}
+    >
       <aside className="sidebar">
         <div className="brand">
           <span className="brand-mark">a</span>
@@ -497,7 +524,11 @@ export default function App() {
           </div>
         </div>
       </aside>
-      <main>
+      <main
+        className={
+          page === "library" && state.root ? "library-page" : undefined
+        }
+      >
         <header className="page-header">
           <div>
             <p className="eyebrow">
@@ -690,7 +721,7 @@ export default function App() {
         ) : (
           <>
             {page === "library" && (
-              <section className="split-panel">
+              <section className="split-panel library-panel">
                 <div className="list-panel">
                   <div className="list-toolbar">
                     <label className="search">
@@ -706,57 +737,65 @@ export default function App() {
                       {t("{count} skills", { count: library.length })}
                     </span>
                   </div>
-                  {library.length ? (
-                    library.map((item) => (
-                      <div
-                        className={`skill-row ${selectedSkill === item.id ? "selected" : ""}`}
-                        key={item.id}
-                      >
-                        <button
-                          className="row-main"
-                          disabled={busy}
-                          onClick={async () => {
-                            setSelectedSkill(item.id);
-                            const r = await run({
-                              action: "read_skill",
-                              data: { id: item.id },
-                            });
-                            setMarkdown(r?.markdown ?? null);
-                          }}
+                  <div className="skill-list">
+                    {library.length ? (
+                      library.map((item) => (
+                        <div
+                          className={`skill-row ${selectedSkill === item.id ? "selected" : ""}`}
+                          key={item.id}
                         >
-                          <div className="row-title">
-                            <BookOpen size={16} />
-                            <strong>{item.name}</strong>
-                          </div>
-                          <p>{item.description || t("Source skill")}</p>
-                          <small>
-                            {item.source
-                              .replace("https://github.com/", "")
-                              .replace(".git", "")}
-                          </small>
-                        </button>
-                        <button
-                          className="icon-button"
-                          aria-label={t("Delete {name}", { name: item.name })}
-                          disabled={busy}
-                          onClick={() => remove("skill", item.id, item.name)}
-                        >
-                          <Trash2 size={14} />
-                        </button>
-                      </div>
-                    ))
-                  ) : (
-                    <Empty
-                      title={t("Add your first skill")}
-                      text={t("Choose skills from a source repository.")}
-                    />
-                  )}
+                          <button
+                            className="row-main"
+                            disabled={busy}
+                            onClick={() => void readSkill(item.id)}
+                          >
+                            <div className="row-title">
+                              <BookOpen size={16} />
+                              <strong>{item.name}</strong>
+                            </div>
+                            <p>{item.description || t("Source skill")}</p>
+                            <small>
+                              {item.source
+                                .replace("https://github.com/", "")
+                                .replace(".git", "")}
+                            </small>
+                          </button>
+                          <button
+                            className="icon-button"
+                            aria-label={t("Delete {name}", { name: item.name })}
+                            disabled={busy}
+                            onClick={() => remove("skill", item.id, item.name)}
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
+                      ))
+                    ) : (
+                      <Empty
+                        title={t("Add your first skill")}
+                        text={t("Choose skills from a source repository.")}
+                      />
+                    )}
+                  </div>
                 </div>
-                <div className="detail-panel">
+                <div
+                  className="detail-panel"
+                  key={selectedSkill}
+                  aria-busy={skillLoading}
+                >
                   {skill ? (
                     <>
                       <div className="detail-heading">
                         <span className="badge">{t("SKILL")}</span>
+                        {skillLoading && (
+                          <span
+                            className="skill-loading"
+                            role="status"
+                            aria-label={t("Loading skill…")}
+                          >
+                            <LoaderCircle size={16} className="spin" />
+                          </span>
+                        )}
                         <h2>{skill.name}</h2>
                         <p className="source-label">{skill.source}</p>
                         <div className="metadata">
@@ -770,21 +809,33 @@ export default function App() {
                           </span>
                         </div>
                       </div>
-                      <Markdown
-                        text={
-                          markdown ?? t("Could not read the skill content.")
-                        }
-                      />
-                      <button
-                        className="secondary"
-                        disabled={busy}
-                        onClick={() => {
-                          setSource(skill.source);
-                          setModal("relocate");
-                        }}
-                      >
-                        {t("Change source location")}
-                      </button>
+                      {!skillLoading && (
+                        <>
+                          {markdown !== null ? (
+                            <Markdown text={markdown} />
+                          ) : (
+                            <p className="error-text" role="alert">
+                              {t("Could not read the skill content.")}
+                              {skillReadError && (
+                                <>
+                                  {" "}
+                                  {translateBackendMessage(t, skillReadError)}
+                                </>
+                              )}
+                            </p>
+                          )}
+                          <button
+                            className="secondary"
+                            disabled={busy}
+                            onClick={() => {
+                              setSource(skill.source);
+                              setModal("relocate");
+                            }}
+                          >
+                            {t("Change source location")}
+                          </button>
+                        </>
+                      )}
                     </>
                   ) : (
                     <Empty
