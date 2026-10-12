@@ -2,6 +2,7 @@ export interface Skill {
   id: string;
   name: string;
   source: string;
+  source_ref?: string;
   skill_path: string;
   revision: string;
   content_hash: string;

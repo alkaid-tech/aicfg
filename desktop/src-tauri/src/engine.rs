@@ -326,6 +326,7 @@ impl Engine {
                 for candidate in selected {
                     if config.library.iter().any(|s| {
                         s.source == candidate.skill.source
+                            && s.source_ref == candidate.skill.source_ref
                             && s.skill_path == candidate.skill.skill_path
                     }) {
                         continue;
@@ -359,9 +360,10 @@ impl Engine {
                     {
                         read(&path)?
                     } else {
-                        let source = checkout(
+                        let source = checkout_ref(
                             &repo.root.join(".aicfg-local"),
                             &skill.source,
+                            skill.source_ref.as_deref(),
                             Some(&skill.revision),
                         )?;
                         let dir = source.join(&skill.skill_path);
@@ -384,13 +386,14 @@ impl Engine {
                     safe_relative(&skill_path)?;
                 }
                 let repo = self.repo()?;
-                let source = normalize_source(&source)?;
-                if repo
-                    .config
-                    .library
-                    .iter()
-                    .any(|s| s.id != id && s.source == source && s.skill_path == skill_path)
-                {
+                let parsed = parse_skill_source(&source)?;
+                let source = parsed.repository;
+                if repo.config.library.iter().any(|s| {
+                    s.id != id
+                        && s.source == source
+                        && s.source_ref == parsed.reference
+                        && s.skill_path == skill_path
+                }) {
                     return Err("Another Library entry already uses this source".into());
                 }
                 let mut config = repo.config.clone();
@@ -399,7 +402,12 @@ impl Engine {
                     .iter_mut()
                     .find(|s| s.id == id)
                     .ok_or("Skill does not exist")?;
-                let download = checkout(&repo.root.join(".aicfg-local"), &source, None)?;
+                let download = checkout_ref(
+                    &repo.root.join(".aicfg-local"),
+                    &source,
+                    parsed.reference.as_deref(),
+                    None,
+                )?;
                 let directory = download.join(&skill_path);
                 let text = read(&directory.join("SKILL.md"))?;
                 let (_, metadata, _) = frontmatter(&text)?;
@@ -414,6 +422,7 @@ impl Engine {
                     .unwrap_or("")
                     .into();
                 skill.source = source;
+                skill.source_ref = parsed.reference;
                 skill.skill_path = skill_path;
                 skill.revision = command(&download, "git", &["rev-parse", "HEAD"])?;
                 let files = tree(&directory)?;
@@ -574,14 +583,16 @@ impl Engine {
                 let library = repo.config.library.clone();
                 let local = repo.root.join(".aicfg-local");
                 let mut found = BTreeMap::new();
-                let mut repositories = BTreeMap::<String, Checkout>::new();
+                let mut repositories = BTreeMap::<(String, Option<String>), Checkout>::new();
                 for skill in library {
-                    let directory = if let Some(dir) = repositories.get(&skill.source) {
+                    let key = (skill.source.clone(), skill.source_ref.clone());
+                    let directory = if let Some(dir) = repositories.get(&key) {
                         dir.to_path_buf()
                     } else {
-                        let dir = checkout(&local, &skill.source, None)?;
+                        let dir =
+                            checkout_ref(&local, &skill.source, skill.source_ref.as_deref(), None)?;
                         let path = dir.to_path_buf();
-                        repositories.insert(skill.source.clone(), dir);
+                        repositories.insert(key, dir);
                         path
                     };
                     let revision = command(&directory, "git", &["rev-parse", "HEAD"])?;

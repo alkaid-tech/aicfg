@@ -56,8 +56,81 @@ pub fn normalize_source(source: &str) -> Result<String> {
     }
     Ok(format!("https://github.com/{repo}.git"))
 }
+#[derive(Debug)]
+pub struct SkillSource {
+    pub repository: String,
+    pub reference: Option<String>,
+    pub directory: String,
+}
+
+pub fn parse_skill_source(source: &str) -> Result<SkillSource> {
+    let value = source.trim().trim_end_matches('/');
+    if let Some(github) = value.strip_prefix("https://github.com/") {
+        let parts = github.split('/').collect::<Vec<_>>();
+        if parts.len() >= 4 && parts[2] == "tree" {
+            let decode = |value: &str| {
+                percent_encoding::percent_decode_str(value)
+                    .decode_utf8()
+                    .map(|value| value.into_owned())
+                    .map_err(|_| "GitHub source URL contains invalid UTF-8".to_string())
+            };
+            let reference = decode(parts[3])?;
+            if reference.is_empty() || reference.starts_with('-') {
+                return Err("GitHub directory URL is missing a valid branch or tag".into());
+            }
+            let path = parts[4..]
+                .iter()
+                .map(|part| decode(part))
+                .collect::<Result<Vec<_>>>()?;
+            if path.iter().any(|part| {
+                part.is_empty() || part == "." || part == ".." || part.contains(['/', '\\'])
+            }) {
+                return Err("GitHub source URL contains an invalid directory path".into());
+            }
+            let directory = path.join("/");
+            if !directory.is_empty() {
+                safe_relative(&directory)?;
+            }
+            return Ok(SkillSource {
+                repository: normalize_source(&format!("{}/{}", parts[0], parts[1]))?,
+                reference: Some(reference),
+                directory,
+            });
+        }
+    }
+    Ok(SkillSource {
+        repository: normalize_source(value)?,
+        reference: None,
+        directory: String::new(),
+    })
+}
+
 pub fn checkout(local: &Path, source: &str, revision: Option<&str>) -> Result<Checkout> {
+    checkout_ref(local, source, None, revision)
+}
+
+pub fn checkout_ref(
+    local: &Path,
+    source: &str,
+    reference: Option<&str>,
+    revision: Option<&str>,
+) -> Result<Checkout> {
     let source = normalize_source(source)?;
+    if revision
+        .is_some_and(|value| value.len() != 40 || !value.chars().all(|c| c.is_ascii_hexdigit()))
+    {
+        return Err("Skill version must be a full source commit identifier".into());
+    }
+    if let Some(reference) = reference {
+        if reference.starts_with('-') {
+            return Err("Invalid source branch or tag".into());
+        }
+        command(
+            local,
+            "git",
+            &["check-ref-format", "--allow-onelevel", reference],
+        )?;
+    }
     let parent = local.join("downloads");
     fs::create_dir_all(&parent).map_err(|e| e.to_string())?;
     let dir = Checkout(tempfile::tempdir_in(parent).map_err(|e| e.to_string())?);
@@ -75,18 +148,18 @@ pub fn checkout(local: &Path, source: &str, revision: Option<&str>) -> Result<Ch
             &dir.to_string_lossy(),
         ],
     )?;
-    if let Some(revision) = revision {
-        if revision.len() != 40 || !revision.chars().all(|c| c.is_ascii_hexdigit()) {
-            return Err("Skill version must be a full source commit identifier".into());
-        }
-        command(&dir, "git", &["fetch", "--depth", "1", "origin", revision])?;
+    if let Some(reference) = revision.or(reference) {
+        command(&dir, "git", &["fetch", "--depth", "1", "origin", reference])?;
         command(&dir, "git", &["checkout", "--detach", "FETCH_HEAD"])?;
     }
     Ok(dir)
 }
 pub fn discover(local: &Path, source: &str) -> Result<Discovery> {
-    let source = normalize_source(source)?;
-    let directory = checkout(local, &source, None)?;
+    discover_source(local, parse_skill_source(source)?)
+}
+
+fn discover_source(local: &Path, source: SkillSource) -> Result<Discovery> {
+    let directory = checkout_ref(local, &source.repository, source.reference.as_deref(), None)?;
     let revision = command(&directory, "git", &["rev-parse", "HEAD"])?;
     let mut dirs = vec![];
     fn walk(dir: &Path, depth: usize, found: &mut Vec<PathBuf>) -> Result<()> {
@@ -95,19 +168,32 @@ pub fn discover(local: &Path, source: &str) -> Result<Discovery> {
         }
         if dir.join("SKILL.md").is_file() {
             found.push(dir.to_path_buf());
+            return Ok(());
         }
         for entry in fs::read_dir(dir).map_err(|e| e.to_string())? {
             let entry = entry.map_err(|e| e.to_string())?;
-            if entry.file_type().map_err(|e| e.to_string())?.is_dir()
-                && ![".git", "node_modules", "target", ".aicfg-local"]
+            let path = entry.path();
+            if !entry.file_name().to_string_lossy().starts_with('.')
+                && entry.file_type().map_err(|e| e.to_string())?.is_dir()
+                && !["node_modules", "target"]
                     .contains(&entry.file_name().to_string_lossy().as_ref())
             {
-                walk(&entry.path(), depth + 1, found)?;
+                walk(&path, depth + 1, found)?;
             }
         }
         Ok(())
     }
-    walk(&directory, 0, &mut dirs)?;
+    let root = directory.join(&source.directory);
+    if !source.directory.is_empty() {
+        guard_ancestors(&directory, &format!("{}/SKILL.md", source.directory))?;
+    }
+    if !root.is_dir() {
+        return Err(format!(
+            "Source directory does not exist: {}",
+            source.directory
+        ));
+    }
+    walk(&root, 0, &mut dirs)?;
     dirs.sort();
     let mut candidates = vec![];
     for dir in dirs {
@@ -133,7 +219,8 @@ pub fn discover(local: &Path, source: &str) -> Result<Discovery> {
             skill: Skill {
                 id: uuid::Uuid::new_v4().to_string(),
                 name,
-                source: source.clone(),
+                source: source.repository.clone(),
+                source_ref: source.reference.clone(),
                 skill_path: if relative.is_empty() {
                     ".".into()
                 } else {
@@ -212,4 +299,292 @@ pub fn replace_snapshot(
         fs::remove_dir_all(previous).map_err(|e| e.to_string())?;
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::engine::{Engine, Request};
+
+    fn write_skill(root: &Path, path: &str, name: &str, body: &str) {
+        let path = root.join(path);
+        fs::create_dir_all(&path).unwrap();
+        fs::write(
+            path.join("SKILL.md"),
+            format!("---\nname: {name}\ndescription: Test skill\n---\n{body}\n"),
+        )
+        .unwrap();
+    }
+
+    fn init(root: &Path) {
+        fs::create_dir_all(root).unwrap();
+        command(root, "git", &["init", "-b", "main"]).unwrap();
+        command(root, "git", &["config", "user.name", "Source test"]).unwrap();
+        command(
+            root,
+            "git",
+            &["config", "user.email", "source@example.invalid"],
+        )
+        .unwrap();
+    }
+
+    fn commit(root: &Path) {
+        command(root, "git", &["add", "."]).unwrap();
+        command(root, "git", &["commit", "-m", "test: update fixture"]).unwrap();
+    }
+
+    fn fixture() -> (tempfile::TempDir, PathBuf, PathBuf) {
+        let temp = tempfile::tempdir().unwrap();
+        let repo = temp.path().join("source");
+        let local = temp.path().join("local");
+        init(&repo);
+        fs::create_dir(&local).unwrap();
+        write_skill(&repo, "docs/skills/review", "review", "Main branch");
+        write_skill(
+            &repo,
+            "docs/skills/review/references/refs/helper",
+            "helper",
+            "Reference copy",
+        );
+        write_skill(
+            &repo,
+            "docs/skills/review/.references/helper",
+            "hidden-helper",
+            "Hidden reference content",
+        );
+        write_skill(
+            &repo,
+            "packages/demo/.cache/installed",
+            "cached",
+            "Nested hidden skill",
+        );
+        write_skill(&repo, "other", "other", "Outside selected directory");
+        for agent in [
+            ".agents",
+            ".claude",
+            ".cursor",
+            ".codex",
+            ".gemini",
+            ".opencode",
+            ".github",
+            ".private-library",
+        ] {
+            write_skill(
+                &repo,
+                &format!("{agent}/skills/installed"),
+                "installed",
+                "Installed skill",
+            );
+        }
+        commit(&repo);
+        (temp, repo, local)
+    }
+
+    #[test]
+    fn github_tree_urls_preserve_refs_and_decode_directory_names() {
+        let parsed =
+            parse_skill_source(" https://github.com/example/skills/tree/main/docs/skills/ ")
+                .unwrap();
+        assert_eq!(parsed.repository, "https://github.com/example/skills.git");
+        assert_eq!(parsed.reference.as_deref(), Some("main"));
+        assert_eq!(parsed.directory, "docs/skills");
+        let parsed = parse_skill_source(
+            "https://github.com/example/skills/tree/feature%2Fskills/docs/my%20skills",
+        )
+        .unwrap();
+        assert_eq!(parsed.reference.as_deref(), Some("feature/skills"));
+        assert_eq!(parsed.directory, "docs/my skills");
+        for source in ["example/skills", "https://github.com/example/skills.git/"] {
+            let parsed = parse_skill_source(source).unwrap();
+            assert_eq!(parsed.repository, "https://github.com/example/skills.git");
+            assert!(parsed.reference.is_none());
+            assert!(parsed.directory.is_empty());
+        }
+    }
+
+    #[test]
+    fn github_tree_urls_reject_unsafe_directories_and_missing_refs() {
+        for suffix in [
+            "tree/",
+            "tree//docs",
+            "tree/-branch/docs",
+            "tree/main/docs/..",
+            "tree/main/docs/%2E%2E",
+            "tree/main/docs/%2Ftmp",
+            "tree/main/docs/%5Ctmp",
+            "tree/main/docs//skills",
+        ] {
+            assert!(
+                parse_skill_source(&format!("https://github.com/example/skills/{suffix}")).is_err(),
+                "{suffix}"
+            );
+        }
+    }
+
+    #[test]
+    fn directory_discovery_keeps_nested_reference_skills_as_content() {
+        let (_temp, repo, local) = fixture();
+        let found = discover_source(
+            &local,
+            SkillSource {
+                repository: repo.to_string_lossy().into(),
+                reference: Some("main".into()),
+                directory: "docs/skills".into(),
+            },
+        )
+        .unwrap();
+        assert_eq!(found.candidates.len(), 1);
+        let skill = &found.candidates[0].skill;
+        assert_eq!(skill.skill_path, "docs/skills/review");
+        assert_eq!(skill.source_ref.as_deref(), Some("main"));
+        assert!(
+            tree(&found.directory.join(&skill.skill_path))
+                .unwrap()
+                .contains_key("references/refs/helper/SKILL.md")
+        );
+        assert!(
+            tree(&found.directory.join(&skill.skill_path))
+                .unwrap()
+                .contains_key(".references/helper/SKILL.md")
+        );
+        assert!(
+            discover_source(
+                &local,
+                SkillSource {
+                    repository: repo.to_string_lossy().into(),
+                    reference: None,
+                    directory: "missing".into(),
+                }
+            )
+            .is_err()
+        );
+    }
+
+    #[test]
+    fn discovery_skips_hidden_directories_but_allows_explicit_hidden_sources() {
+        let (_temp, repo, local) = fixture();
+        let found = discover(&local, &repo.to_string_lossy()).unwrap();
+        assert_eq!(
+            found
+                .candidates
+                .iter()
+                .map(|c| c.skill.name.as_str())
+                .collect::<Vec<_>>(),
+            ["review", "other"]
+        );
+        for agent in [
+            ".agents",
+            ".claude",
+            ".cursor",
+            ".codex",
+            ".gemini",
+            ".opencode",
+            ".github",
+            ".private-library",
+        ] {
+            let found = discover_source(
+                &local,
+                SkillSource {
+                    repository: repo.to_string_lossy().into(),
+                    reference: None,
+                    directory: format!("{agent}/skills"),
+                },
+            )
+            .unwrap();
+            assert_eq!(found.candidates.len(), 1);
+            assert_eq!(found.candidates[0].skill.name, "installed");
+        }
+    }
+
+    #[test]
+    fn branch_sources_survive_persistence_and_update_independently() {
+        let (temp, repo, local) = fixture();
+        let main = discover(&local, &repo.to_string_lossy())
+            .unwrap()
+            .candidates
+            .into_iter()
+            .find(|c| c.skill.name == "review")
+            .unwrap()
+            .skill;
+        command(&repo, "git", &["switch", "-c", "feature/skills"]).unwrap();
+        write_skill(&repo, "docs/skills/review", "review", "Feature branch");
+        commit(&repo);
+        command(&repo, "git", &["switch", "main"]).unwrap();
+        let feature = discover_source(
+            &local,
+            SkillSource {
+                repository: repo.to_string_lossy().into(),
+                reference: Some("feature/skills".into()),
+                directory: "docs/skills/review".into(),
+            },
+        )
+        .unwrap()
+        .candidates
+        .remove(0)
+        .skill;
+        let config_root = temp.path().join("configuration");
+        init(&config_root);
+        let mut engine = Engine::new(None);
+        engine
+            .execute(Request::Open {
+                path: config_root.to_string_lossy().into(),
+            })
+            .unwrap();
+        engine
+            .execute(Request::Save {
+                config: Config {
+                    library: vec![main, feature.clone()],
+                    ..Default::default()
+                },
+            })
+            .unwrap();
+        engine
+            .execute(Request::Open {
+                path: config_root.to_string_lossy().into(),
+            })
+            .unwrap();
+        assert!(
+            engine
+                .execute(Request::CheckUpdates)
+                .unwrap()
+                .updates
+                .unwrap()
+                .is_empty()
+        );
+        assert!(
+            engine
+                .execute(Request::ReadSkill {
+                    id: feature.id.clone()
+                })
+                .unwrap()
+                .markdown
+                .unwrap()
+                .contains("Feature branch")
+        );
+        command(&repo, "git", &["switch", "feature/skills"]).unwrap();
+        write_skill(&repo, "docs/skills/review", "review", "Feature update");
+        commit(&repo);
+        command(&repo, "git", &["switch", "main"]).unwrap();
+        let updates = engine
+            .execute(Request::CheckUpdates)
+            .unwrap()
+            .updates
+            .unwrap();
+        assert_eq!(updates.len(), 1);
+        assert_eq!(updates[0].id, feature.id);
+        assert_eq!(updates[0].source_ref.as_deref(), Some("feature/skills"));
+        engine
+            .execute(Request::AdoptUpdates {
+                ids: vec![feature.id.clone()],
+            })
+            .unwrap();
+        assert!(
+            engine
+                .execute(Request::ReadSkill { id: feature.id })
+                .unwrap()
+                .markdown
+                .unwrap()
+                .contains("Feature update")
+        );
+    }
 }

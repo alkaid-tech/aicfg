@@ -28,6 +28,7 @@ serde_yaml = "0.9"
 sha2 = "0.10"
 uuid = { version = "1", features = ["v4", "serde"] }
 tempfile = "3"
+percent-encoding = "2"
 tauri = { version = "2", optional = true , features = [] }
 tauri-plugin-dialog = { version = "2", optional = true }
 
