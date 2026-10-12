@@ -12,6 +12,10 @@ Saving shared configuration also creates a local commit and attempts to push it.
 
 Choose **Add skills to Library** and enter a GitHub URL, `owner/repo`, or an absolute path to a local Git repository. Discover the available skills, read their documentation, and select the ones you want to collect.
 
+To collect skills from one directory, use a GitHub tree URL such as `https://github.com/owner/repo/tree/main/docs/skills`. Discovery only scans that directory, while stored skill paths remain relative to the repository root. The selected branch or tag is retained for update checks; adopted versions remain pinned to full commit identifiers. Encode a slash in a branch name as `%2F`.
+
+Discovery skips all directories whose names start with `.`, including agent installation directories such as `.agents`, `.claude`, and `.cursor`. To import a hidden directory intentionally, enter its GitHub tree URL, for example `https://github.com/owner/repo/tree/main/.agents/skills`. The explicitly selected directory is scanned; hidden directories beneath it remain excluded. Discovery stops at each skill directory, so nested `SKILL.md` reference copies are kept as content rather than listed as separate skills. All skill content, including hidden reference files, is preserved.
+
 Discovery reads committed source contents. A repository may contain several skills; you choose individual skills rather than automatically collecting everything. Adding a skill to the Library does not install it into a target project.
 
 You can change a skill's source repository or directory while retaining its identity and preset references. Check for updates and preview target changes before applying content from the new location.

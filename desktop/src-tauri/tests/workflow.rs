@@ -16,6 +16,7 @@ fn skill(name: &str) -> Skill {
         id: id(),
         name: name.into(),
         source: "https://github.com/example/skills.git".into(),
+        source_ref: None,
         skill_path: "skills/review".into(),
         revision: "a".repeat(40),
         content_hash: "b".repeat(64),

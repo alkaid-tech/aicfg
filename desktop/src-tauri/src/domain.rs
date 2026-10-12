@@ -23,6 +23,8 @@ pub struct Skill {
     pub id: String,
     pub name: String,
     pub source: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub source_ref: Option<String>,
     pub skill_path: String,
     pub revision: String,
     pub content_hash: String,

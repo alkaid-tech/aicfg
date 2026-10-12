@@ -245,9 +245,10 @@ impl Plan {
             let source = if usable {
                 snapshot
             } else {
-                download = checkout(
+                download = checkout_ref(
                     &repo.root.join(".aicfg-local"),
                     &item.skill.source,
+                    item.skill.source_ref.as_deref(),
                     Some(&item.revision),
                 )?;
                 if item.skill.skill_path != "." {

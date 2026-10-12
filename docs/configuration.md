@@ -36,6 +36,8 @@ configuration/
 
 Rule bodies are stored separately at `rules/<rule-id>.md`, not inside the shared TOML. Renaming an object preserves its identifier and references.
 
+Skills imported from GitHub tree URLs also store an optional `source_ref` containing the selected branch or tag. Update checks follow that ref; entries without it follow the repository's default branch. The `source` remains the repository URL, and `skill_path` remains relative to its root. Existing configuration requires no migration.
+
 For example, a rule-only preset can be represented as:
 
 ```toml

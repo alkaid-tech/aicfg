@@ -828,7 +828,11 @@ export default function App() {
                             className="secondary"
                             disabled={busy}
                             onClick={() => {
-                              setSource(skill.source);
+                              setSource(
+                                skill.source_ref
+                                  ? `${skill.source.replace(/\.git$/, "")}/tree/${encodeURIComponent(skill.source_ref)}`
+                                  : skill.source,
+                              );
                               setModal("relocate");
                             }}
                           >
