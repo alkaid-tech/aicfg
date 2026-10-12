@@ -324,6 +324,17 @@ h1 {
 .library-panel .detail-panel {
   min-height: 0;
   overscroll-behavior-y: contain;
+  scrollbar-gutter: stable;
+}
+.library-panel .detail-heading {
+  position: relative;
+}
+.skill-loading {
+  position: absolute;
+  top: 0;
+  right: 0;
+  display: flex;
+  color: var(--muted);
 }
 .list-toolbar {
   padding: 20px;

@@ -101,6 +101,7 @@ export const messages = {
     "处理中，请稍候…",
     "処理中です。しばらくお待ちください…",
   ],
+  "Loading skill…": ["正在加载技能…", "スキルを読み込み中…"],
   "Dismiss error": ["关闭错误提示", "エラーを閉じる"],
   "Language settings": ["语言设置", "言語設定"],
   Language: ["语言", "言語"],
