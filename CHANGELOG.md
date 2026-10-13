@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.1.2](https://github.com/alkaid-tech/aicfg/compare/v0.1.1...v0.1.2) (2026-10-13)
+
+
+### Bug Fixes
+
+* **library:** render document metadata separately from Markdown ([8056aa8](https://github.com/alkaid-tech/aicfg/commit/8056aa8f4699f6238d1e40b78c57509cd77d7003))
+* **library:** separate document metadata from Markdown content ([792b17e](https://github.com/alkaid-tech/aicfg/commit/792b17ed26d99f8dda87fc097bb7c422b73c2fab))
+* **preview:** satisfy Clippy conditional lint ([e982dee](https://github.com/alkaid-tech/aicfg/commit/e982dee22e4ddc762443b89cdc1b4e916da34976))
+
+
+### Performance Improvements
+
+* **preview:** cache unchanged skill installations ([0051dfc](https://github.com/alkaid-tech/aicfg/commit/0051dfc2fc24c045f7b8e1a4f6af4a658ac8e491))
+* **preview:** cache unchanged skill installations ([5e8958b](https://github.com/alkaid-tech/aicfg/commit/5e8958bc9bf435b6cc73940b2bdd8766444d5df2))
+
 ## [0.1.1](https://github.com/alkaid-tech/aicfg/compare/v0.1.0...v0.1.1) (2026-10-13)
 
 
