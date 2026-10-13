@@ -405,10 +405,10 @@ impl Plan {
             })?;
             // Naming depends on preset resolution, so rewrite it after cache lookup.
             for (relative, mut value) in prepared {
-                if relative == "SKILL.md" {
-                    if let Entry::File(bytes, _) = &mut value {
-                        *bytes = installed_markdown(bytes, &item.install_name)?;
-                    }
+                if relative == "SKILL.md"
+                    && let Entry::File(bytes, _) = &mut value
+                {
+                    *bytes = installed_markdown(bytes, &item.install_name)?;
                 }
                 desired.insert(
                     format!(".agents/skills/{}/{}", item.install_name, relative),
