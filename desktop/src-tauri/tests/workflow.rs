@@ -503,6 +503,7 @@ fn real_installer_roundtrip_preview_apply_drift_and_update() {
             },
         })
         .unwrap();
+    let cold_start = std::time::Instant::now();
     let preview = engine
         .execute(Request::Preview {
             id: target_id.clone(),
@@ -511,6 +512,28 @@ fn real_installer_roundtrip_preview_apply_drift_and_update() {
         .unwrap()
         .preview
         .unwrap();
+    let cold_elapsed = cold_start.elapsed();
+    let warm_start = std::time::Instant::now();
+    // Reopen the repository to verify reuse across application sessions.
+    engine.repo = Some(Repository::open(&configuration).unwrap());
+    let cached_preview = engine
+        .execute(Request::Preview {
+            id: target_id.clone(),
+            choices: BTreeMap::new(),
+        })
+        .unwrap()
+        .preview
+        .unwrap();
+    println!(
+        "Preview timing: cold {:?}, cached {:?}",
+        cold_elapsed,
+        warm_start.elapsed()
+    );
+    assert_eq!(
+        serde_json::to_value(&preview.changes).unwrap(),
+        serde_json::to_value(&cached_preview.changes).unwrap()
+    );
+    let preview = cached_preview;
     assert!(!target.join(".agents/skills").exists());
     assert!(
         preview

@@ -1,10 +1,10 @@
 use crate::{domain::*, files::*, repository::*, source::*};
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 #[cfg(unix)]
 use std::os::unix::fs::PermissionsExt;
 use std::{collections::BTreeMap, fs, path::Path};
 
-#[derive(Clone, PartialEq, Debug)]
+#[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
 pub enum Entry {
     Missing,
     File(Vec<u8>, u32),
@@ -169,6 +169,121 @@ pub fn config_signature(repo: &Repository) -> Result<String> {
     }
     Ok(tree_hash(&values))
 }
+// Bump the cache schema when the installer invocation or cached layout changes.
+const INSTALLER: &str = "skills@1.7.2";
+const INSTALL_CACHE_SCHEMA: u32 = 1;
+
+#[derive(Serialize, Deserialize)]
+struct CachedInstallation {
+    fingerprint: String,
+    files: BTreeMap<String, Entry>,
+}
+
+fn entries_fingerprint(files: &BTreeMap<String, Entry>) -> Result<String> {
+    let signatures = files
+        .iter()
+        .map(|(path, value)| (path, value.signature()))
+        .collect::<BTreeMap<_, _>>();
+    Ok(hash(
+        &serde_json::to_vec(&signatures).map_err(|e| e.to_string())?,
+    ))
+}
+
+fn skill_entries(
+    root: &Path,
+    contents: BTreeMap<String, Vec<u8>>,
+) -> Result<BTreeMap<String, Entry>> {
+    contents
+        .into_iter()
+        .map(|(path, bytes)| {
+            let metadata = fs::metadata(root.join(&path)).map_err(|e| e.to_string())?;
+            #[cfg(unix)]
+            let mode = metadata.permissions().mode() & 0o777;
+            #[cfg(not(unix))]
+            let mode = 0o644;
+            Ok((path, Entry::File(bytes, mode)))
+        })
+        .collect()
+}
+
+fn cached_installation(
+    local: &Path,
+    source_files: &BTreeMap<String, Entry>,
+    install: impl FnOnce() -> Result<BTreeMap<String, Entry>>,
+) -> Result<BTreeMap<String, Entry>> {
+    let key = hash(
+        &serde_json::to_vec(&(
+            INSTALL_CACHE_SCHEMA,
+            INSTALLER,
+            std::env::consts::OS,
+            entries_fingerprint(source_files)?,
+        ))
+        .map_err(|e| e.to_string())?,
+    );
+    let relative = format!("installer-cache/{key}.json");
+    guard_ancestors(local, &relative)?;
+    let path = local.join(relative);
+    if let Some(cached) = fs::read(&path)
+        .ok()
+        .and_then(|bytes| serde_json::from_slice::<CachedInstallation>(&bytes).ok())
+    {
+        let valid = matches!(cached.files.get("SKILL.md"), Some(Entry::File(_, _)))
+            && cached.files.iter().all(|(path, value)| {
+                safe_relative(path).is_ok() && matches!(value, Entry::File(_, _))
+            })
+            && entries_fingerprint(&cached.files)? == cached.fingerprint;
+        if valid {
+            return Ok(cached.files);
+        }
+    }
+    let files = install()?;
+    let cached = CachedInstallation {
+        fingerprint: entries_fingerprint(&files)?,
+        files,
+    };
+    // Cache persistence is optional; a successful installation can still be previewed.
+    let _ = atomic_write(
+        &path,
+        &serde_json::to_vec(&cached).map_err(|e| e.to_string())?,
+    );
+    Ok(cached.files)
+}
+
+fn install_skill(
+    local: &Path,
+    source: &Path,
+    source_name: &str,
+) -> Result<BTreeMap<String, Entry>> {
+    let stage = tempfile::tempdir_in(local).map_err(|e| e.to_string())?;
+    command(
+        stage.path(),
+        "npx",
+        &[
+            "--yes",
+            INSTALLER,
+            "add",
+            &source.to_string_lossy(),
+            "--skill",
+            source_name,
+            "--agent",
+            "codex",
+            "--yes",
+            "--copy",
+        ],
+    )?;
+    let installed = fs::read_dir(stage.path().join(".agents/skills"))
+        .map_err(|e| e.to_string())?
+        .map(|entry| entry.map(|e| e.path()).map_err(|e| e.to_string()))
+        .collect::<Result<Vec<_>>>()?
+        .into_iter()
+        .filter(|path| path.join("SKILL.md").is_file())
+        .collect::<Vec<_>>();
+    if installed.len() != 1 {
+        return Err("The installer did not create a unique skill directory".into());
+    }
+    skill_entries(&installed[0], tree(&installed[0])?)
+}
+
 impl Plan {
     pub fn view(&self) -> Preview {
         Preview {
@@ -238,9 +353,14 @@ impl Plan {
         let mut installed = vec![];
         for item in &resolution.skills {
             let snapshot = repo.snapshot(&item.skill.id);
-            let usable = snapshot.exists()
-                && item.revision == item.skill.revision
-                && tree_hash(&tree(&snapshot)?) == item.skill.content_hash;
+            let snapshot_contents = if snapshot.exists() && item.revision == item.skill.revision {
+                Some(tree(&snapshot)?)
+            } else {
+                None
+            };
+            let usable = snapshot_contents
+                .as_ref()
+                .is_some_and(|contents| tree_hash(contents) == item.skill.content_hash);
             let download;
             let source = if usable {
                 snapshot
@@ -256,72 +376,43 @@ impl Plan {
                 }
                 download.join(&item.skill.skill_path)
             };
-            let contents = tree(&source)?;
+            let contents = if usable {
+                snapshot_contents.unwrap()
+            } else {
+                tree(&source)?
+            };
+            let content_hash = tree_hash(&contents);
             let mut record = item.clone();
             record.skill.revision = item.revision.clone();
-            record.skill.content_hash = tree_hash(&contents);
+            record.skill.content_hash = content_hash.clone();
             installed.push(record);
-            let stage =
-                tempfile::tempdir_in(repo.root.join(".aicfg-local")).map_err(|e| e.to_string())?;
             let source_markdown = read(&source.join("SKILL.md"))?;
             let (_, metadata, _) = frontmatter(&source_markdown)?;
             let source_name = metadata
                 .get("name")
                 .and_then(serde_yaml::Value::as_str)
                 .ok_or("Source skill is missing its name")?;
-            if item.revision == item.skill.revision
-                && tree_hash(&contents) != item.skill.content_hash
-            {
+            if item.revision == item.skill.revision && content_hash != item.skill.content_hash {
                 return Err(format!(
                     "Source content for {} does not match the adopted fingerprint",
                     item.skill.name
                 ));
             }
-            command(
-                stage.path(),
-                "npx",
-                &[
-                    "--yes",
-                    "skills@1.7.2",
-                    "add",
-                    &source.to_string_lossy(),
-                    "--skill",
-                    source_name,
-                    "--agent",
-                    "codex",
-                    "--yes",
-                    "--copy",
-                ],
-            )?;
-            let installed = fs::read_dir(stage.path().join(".agents/skills"))
-                .map_err(|e| e.to_string())?
-                .filter_map(|e| e.ok().map(|e| e.path()))
-                .filter(|p| p.join("SKILL.md").is_file())
-                .collect::<Vec<_>>();
-            if installed.len() != 1 {
-                return Err("The installer did not create a unique skill directory".into());
-            }
-            let installed_root = &installed[0];
-            // The installer owns source acquisition/layout; aicfg owns conflict naming.
-            if !installed_root.join("SKILL.md").exists() {
-                return Err(format!(
-                    "The installer did not create the expected directory for {}",
-                    item.skill.name
-                ));
-            }
-            for (relative, mut bytes) in tree(installed_root)? {
-                if relative == "SKILL.md" {
-                    bytes = installed_markdown(&bytes, &item.install_name)?;
+            let source_files = skill_entries(&source, contents)?;
+            let local = repo.root.join(".aicfg-local");
+            let prepared = cached_installation(&local, &source_files, || {
+                install_skill(&local, &source, source_name)
+            })?;
+            // Naming depends on preset resolution, so rewrite it after cache lookup.
+            for (relative, mut value) in prepared {
+                if relative == "SKILL.md"
+                    && let Entry::File(bytes, _) = &mut value
+                {
+                    *bytes = installed_markdown(bytes, &item.install_name)?;
                 }
-                let metadata =
-                    fs::metadata(installed_root.join(&relative)).map_err(|e| e.to_string())?;
-                #[cfg(unix)]
-                let mode = metadata.permissions().mode() & 0o777;
-                #[cfg(not(unix))]
-                let mode = 0o644;
                 desired.insert(
                     format!(".agents/skills/{}/{}", item.install_name, relative),
-                    Entry::File(bytes, mode),
+                    value,
                 );
             }
         }
@@ -570,5 +661,84 @@ impl Plan {
             "Target project is synced"
         }
         .into())
+    }
+}
+
+#[cfg(test)]
+mod cache_tests {
+    use super::*;
+    use std::cell::Cell;
+
+    fn files(body: &[u8], mode: u32) -> BTreeMap<String, Entry> {
+        BTreeMap::from([
+            ("SKILL.md".into(), Entry::File(body.to_vec(), 0o644)),
+            (
+                "check.sh".into(),
+                Entry::File(b"#!/bin/sh\n".to_vec(), mode),
+            ),
+        ])
+    }
+
+    #[test]
+    fn unchanged_skills_reuse_disk_cache_and_only_changed_inputs_are_installed() {
+        let local = tempfile::tempdir().unwrap();
+        let calls = Cell::new(0);
+        let first = files(b"first", 0o755);
+        let second = files(b"second", 0o644);
+        let install = |input: &BTreeMap<String, Entry>| {
+            cached_installation(local.path(), input, || {
+                calls.set(calls.get() + 1);
+                Ok(input.clone())
+            })
+            .unwrap()
+        };
+        assert_eq!(install(&first), first);
+        assert_eq!(install(&second), second);
+        assert_eq!(calls.get(), 2);
+        assert_eq!(install(&first), first);
+        assert_eq!(install(&second), second);
+        assert_eq!(calls.get(), 2);
+        let changed = files(b"second updated", 0o644);
+        assert_eq!(install(&changed), changed);
+        assert_eq!(install(&first), first);
+        assert_eq!(calls.get(), 3);
+        let permissions_changed = files(b"first", 0o644);
+        assert_eq!(install(&permissions_changed), permissions_changed);
+        assert_eq!(calls.get(), 4);
+    }
+
+    #[test]
+    fn corrupt_cache_is_rebuilt_and_failed_installs_are_not_cached() {
+        let local = tempfile::tempdir().unwrap();
+        let source = files(b"source", 0o755);
+        let prepared = files(b"installer output", 0o755);
+        cached_installation(local.path(), &source, || Ok(prepared.clone())).unwrap();
+        let path = fs::read_dir(local.path().join("installer-cache"))
+            .unwrap()
+            .next()
+            .unwrap()
+            .unwrap()
+            .path();
+        let mut cached: CachedInstallation =
+            serde_json::from_slice(&fs::read(&path).unwrap()).unwrap();
+        cached.files = files(b"corrupted", 0o644);
+        fs::write(&path, serde_json::to_vec(&cached).unwrap()).unwrap();
+        assert_eq!(
+            cached_installation(local.path(), &source, || Ok(prepared.clone())).unwrap(),
+            prepared
+        );
+        fs::write(&path, b"incomplete JSON").unwrap();
+        assert!(
+            cached_installation(local.path(), &source, || Err("installer failed".into())).is_err()
+        );
+        assert_eq!(
+            cached_installation(local.path(), &source, || Ok(prepared.clone())).unwrap(),
+            prepared
+        );
+        assert_eq!(
+            cached_installation(local.path(), &source, || panic!("cache should be reused"))
+                .unwrap(),
+            prepared
+        );
     }
 }
