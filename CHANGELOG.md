@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.1.1](https://github.com/alkaid-tech/aicfg/compare/v0.1.0...v0.1.1) (2026-10-13)
+
+
+### Features
+
+* **library:** support scoped GitHub skill imports ([922cc57](https://github.com/alkaid-tech/aicfg/commit/922cc570df10e58d40f8b1addb4a9224d5cab78c))
+* **library:** support scoped GitHub skill imports ([bb60505](https://github.com/alkaid-tech/aicfg/commit/bb6050592b2b6d614a78e3dff5b1f97fbfa356bc))
+
+
+### Miscellaneous Chores
+
+* **release:** prepare v0.1.1 ([be53bd1](https://github.com/alkaid-tech/aicfg/commit/be53bd107a9cf7b079649c5e6cc60bf2f5b3bd7d))
+
 ## 0.1.0 (2026-10-12)
 
 
