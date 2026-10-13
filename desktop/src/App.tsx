@@ -3,8 +3,7 @@ import type { ReactNode } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
 import { ReactFlow, Background, Controls } from "@xyflow/react";
-import ReactMarkdown from "react-markdown";
-import remarkGfm from "remark-gfm";
+import { Markdown } from "./Markdown";
 import {
   BookOpen,
   Layers,
@@ -183,15 +182,6 @@ function Empty({
       <h2>{title}</h2>
       <p>{text}</p>
       {children}
-    </div>
-  );
-}
-function Markdown({ text }: { text: string }) {
-  return (
-    <div className="markdown">
-      <ReactMarkdown remarkPlugins={[remarkGfm]} skipHtml>
-        {text}
-      </ReactMarkdown>
     </div>
   );
 }

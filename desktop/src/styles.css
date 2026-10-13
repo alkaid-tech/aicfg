@@ -486,6 +486,24 @@ code {
 .markdown h3 {
   font-size: 15px;
 }
+.markdown-metadata {
+  margin-bottom: 20px;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  overflow: hidden;
+}
+.markdown-metadata summary {
+  cursor: pointer;
+  padding: 10px 14px;
+  font-size: 12px;
+  font-weight: 550;
+}
+.markdown .markdown-metadata pre {
+  margin: 0;
+  border-radius: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
 .markdown pre {
   background: #f4f5ef;
   padding: 16px;
