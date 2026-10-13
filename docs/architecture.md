@@ -32,12 +32,12 @@ The core can be tested without Tauri by disabling default Cargo features. Enabli
 1. Resolve selected presets and their references, validate identities and cycles, and deduplicate source skills.
 2. Resolve skill version conflicts with explicit target choices.
 3. Retrieve exact source contents and verify the adopted fingerprint.
-4. Invoke `npx --yes skills@1.7.2 add ... --agent codex --yes --copy` in an isolated temporary directory.
+4. Reuse a local installer result keyed by source contents, file permissions, installer version, platform, and cache schema. On a cache miss, invoke `npx --yes skills@1.7.2 add ... --agent codex --yes --copy` in an isolated temporary directory and cache the result.
 5. Generate adapter output and compare it with current target entries.
 6. Return a preview with a token and the information needed to detect later changes.
 7. After confirmation, validate the preview again, apply the selected operations, and record managed fingerprints and installed versions.
 
-The installer prepares content in isolation rather than modifying the target directly. The planner owns the final writes, ownership decisions, and instruction regions.
+The installer prepares content in isolation rather than modifying the target directly. Results persist in `.aicfg-local/installer-cache/` across previews and application restarts. Missing or corrupt cache entries are rebuilt; deleting the cache is safe. Preset-specific names are generated after cache lookup, and target files are always read again to detect local edits. The planner owns the final writes, ownership decisions, and instruction regions.
 
 ## Data boundaries
 
