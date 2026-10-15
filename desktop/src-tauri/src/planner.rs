@@ -316,6 +316,15 @@ impl Plan {
         target_id: &str,
         choices: BTreeMap<String, String>,
     ) -> Result<Self> {
+        Self::build_with_progress(repo, target_id, choices, &|_| {})
+    }
+    pub fn build_with_progress(
+        repo: &mut Repository,
+        target_id: &str,
+        choices: BTreeMap<String, String>,
+        progress: &dyn Fn(&str),
+    ) -> Result<Self> {
+        progress("Resolving saved presets and skill versions");
         repo.reload()?;
         let target = repo
             .local
@@ -352,6 +361,7 @@ impl Plan {
         let mut desired = BTreeMap::<String, Entry>::new();
         let mut installed = vec![];
         for item in &resolution.skills {
+            progress(&format!("Reading skill source: {}", item.skill.name));
             let snapshot = repo.snapshot(&item.skill.id);
             let snapshot_contents = if snapshot.exists() && item.revision == item.skill.revision {
                 Some(tree(&snapshot)?)
@@ -365,6 +375,7 @@ impl Plan {
             let source = if usable {
                 snapshot
             } else {
+                progress(&format!("Fetching skill source: {}", item.skill.name));
                 download = checkout_ref(
                     &repo.root.join(".aicfg-local"),
                     &item.skill.source,
@@ -400,9 +411,22 @@ impl Plan {
             }
             let source_files = skill_entries(&source, contents)?;
             let local = repo.root.join(".aicfg-local");
+            progress(&format!(
+                "Checking prepared skill cache: {}",
+                item.skill.name
+            ));
+            let mut reused = true;
             let prepared = cached_installation(&local, &source_files, || {
+                reused = false;
+                progress(&format!(
+                    "Installing skill in temporary directory: {}",
+                    item.skill.name
+                ));
                 install_skill(&local, &source, source_name)
             })?;
+            if reused {
+                progress(&format!("Reused prepared skill cache: {}", item.skill.name));
+            }
             // Naming depends on preset resolution, so rewrite it after cache lookup.
             for (relative, mut value) in prepared {
                 if relative == "SKILL.md"
@@ -416,6 +440,7 @@ impl Plan {
                 );
             }
         }
+        progress("Generating rules and comparing target files");
         let mut references = vec![];
         for rule in &resolution.rules {
             let filename = format!("{}.md", rule.id);
@@ -542,6 +567,15 @@ impl Plan {
         repo: &mut Repository,
         decisions: &BTreeMap<String, String>,
     ) -> Result<String> {
+        self.apply_with_progress(repo, decisions, &|_| {})
+    }
+    pub fn apply_with_progress(
+        self,
+        repo: &mut Repository,
+        decisions: &BTreeMap<String, String>,
+        progress: &dyn Fn(&str),
+    ) -> Result<String> {
+        progress("Validating preview before applying changes");
         let index = repo
             .local
             .targets
@@ -618,6 +652,7 @@ impl Plan {
                     continue;
                 }
                 // Include attempted writes: an I/O error can occur after partial mutation.
+                progress(&format!("Applying file change: {}", change.path));
                 written.push(change);
                 write_entry(&root.join(&change.path), &change.after)?;
             }

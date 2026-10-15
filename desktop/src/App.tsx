@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
-import { invoke } from "@tauri-apps/api/core";
+import { Channel, invoke } from "@tauri-apps/api/core";
 import { getVersion } from "@tauri-apps/api/app";
 import { version as packageVersion } from "../package.json";
 import { open } from "@tauri-apps/plugin-dialog";
@@ -234,6 +234,7 @@ export default function App() {
     [notice, setNotice] = useState(""),
     [error, setError] = useState("");
   const [appVersion, setAppVersion] = useState(packageVersion);
+  const [operationLog, setOperationLog] = useState<string[]>([]);
   const [query, setQuery] = useState(""),
     [selectedSkill, setSelectedSkill] = useState(""),
     [markdown, setMarkdown] = useState<string | null>("");
@@ -296,12 +297,43 @@ export default function App() {
   async function run(request: Request): Promise<Response | undefined> {
     setBusy(true);
     setError("");
+    setNotice("");
+    const tracked = request.action === "preview" || request.action === "apply";
+    setOperationLog(
+      tracked
+        ? [
+            request.action === "preview"
+              ? "Preparing preview"
+              : "Applying confirmed changes",
+          ]
+        : [],
+    );
+    const onProgress = tracked ? new Channel<string>() : undefined;
+    if (onProgress)
+      onProgress.onmessage = (message) =>
+        setOperationLog((lines) => [...lines.slice(-199), message]);
     try {
-      const result = await invoke<Response>("dispatch", { request });
+      const result = await invoke<Response>(
+        tracked ? "dispatch_with_progress" : "dispatch",
+        {
+          request,
+          ...(onProgress ? { onProgress } : {}),
+        },
+      );
+      if (tracked)
+        setOperationLog((lines) => [
+          ...lines.slice(-199),
+          "Operation completed",
+        ]);
       setState(result.state);
       if (result.notice) setNotice(result.notice);
       return result;
     } catch (e) {
+      if (tracked)
+        setOperationLog((lines) => [
+          ...lines.slice(-199),
+          "Operation failed. See the error message for details",
+        ]);
       setError(String(e));
       return undefined;
     } finally {
@@ -458,6 +490,17 @@ export default function App() {
     );
     if (result) close();
   }
+  async function saveAndPreview() {
+    if (busy || !target || target.target.repair) return;
+    if (targetDirty) {
+      const saved = await run({
+        action: "save_target",
+        data: { id: selectedTarget, config: targetConfig },
+      });
+      if (!saved) return;
+    }
+    await showPreview();
+  }
   async function showPreview(versionChoices: Record<string, string> = {}) {
     const result = await run({
       action: "preview",
@@ -605,6 +648,9 @@ export default function App() {
             <LoaderCircle size={15} className="spin" />
             {t("Working, please wait…")}
           </div>
+        )}
+        {operationLog.length > 0 && modal !== "preview" && (
+          <OperationLog lines={operationLog} />
         )}
         {error && modal !== "delete" && (
           <div className="banner error" role="alert">
@@ -991,6 +1037,7 @@ export default function App() {
                     state.targets.map((view) => (
                       <button
                         key={view.target.id}
+                        disabled={busy}
                         className={`target-row ${selectedTarget === view.target.id ? "selected" : ""}`}
                         onClick={() => setSelectedTarget(view.target.id)}
                       >
@@ -1078,36 +1125,31 @@ export default function App() {
                       </details>
                       <div className="actions">
                         <button
-                          className="secondary"
-                          disabled={busy}
-                          onClick={() =>
-                            run({
-                              action: "save_target",
-                              data: {
-                                id: selectedTarget,
-                                config: targetConfig,
-                              },
-                            })
-                          }
-                        >
-                          {t("Save configuration")}
-                        </button>
-                        <button
                           className="primary"
-                          disabled={busy || target.target.repair || targetDirty}
-                          onClick={() => showPreview()}
+                          disabled={busy || target.target.repair}
+                          onClick={saveAndPreview}
                         >
-                          {t("Preview changes")}
+                          {t("Save and preview changes")}
                           <ArrowUpRight size={15} />
                         </button>
                       </div>
                       <p className="hint">
-                        {targetDirty
-                          ? t("Save the configuration to preview file changes.")
-                          : t(
-                              "Skills and rules are applied after you confirm the changes.",
-                            )}
+                        {t(
+                          "Save and preview saves your configuration and shows file changes. Target files change only after you confirm and apply.",
+                        )}
                       </p>
+                      <p className="hint">
+                        {t(
+                          "Preview compares saved presets with target files. Uncached skills are prepared with the installer in a temporary directory and cached locally. It may fetch sources and take a while. Target files change only after confirmation.",
+                        )}
+                      </p>
+                      {!targetConfig.presets.length && (
+                        <p className="hint">
+                          {t(
+                            "No presets selected. Preview will only check adapters and previously managed files; it will not add preset skills or rules.",
+                          )}
+                        </p>
+                      )}
                       {target.target.repair && (
                         <button
                           className="secondary"
@@ -1657,6 +1699,12 @@ export default function App() {
           )}
           {modal === "preview" && preview && (
             <div className="form">
+              {operationLog.length > 0 && <OperationLog lines={operationLog} />}
+              {error && (
+                <p className="error-text" role="alert">
+                  {translateBackendMessage(t, error)}
+                </p>
+              )}
               {Object.keys(preview.resolution.conflicts).length > 0 ? (
                 <>
                   <p>
@@ -1782,7 +1830,7 @@ export default function App() {
                   ) : (
                     <p>
                       {t(
-                        "File contents already match. Confirm to record the application state.",
+                        "No file changes. The target files already match the saved configuration. Confirm to record the application state.",
                       )}
                     </p>
                   )}
@@ -1828,5 +1876,29 @@ export default function App() {
         </Modal>
       )}
     </div>
+  );
+}
+
+function OperationLog({ lines }: { lines: string[] }) {
+  const { t } = useI18n();
+  const end = useRef<HTMLLIElement>(null);
+  useEffect(() => {
+    end.current?.scrollIntoView?.({ block: "nearest" });
+  }, [lines]);
+  return (
+    <section className="operation-log" aria-label={t("Activity log")}>
+      <strong>{t("Activity log")}</strong>
+      <p role="status">{translateBackendMessage(t, lines.at(-1) ?? "")}</p>
+      <details>
+        <summary>{t("Show activity details")}</summary>
+        <ol>
+          {lines.map((line, i) => (
+            <li key={i} ref={i === lines.length - 1 ? end : undefined}>
+              {translateBackendMessage(t, line)}
+            </li>
+          ))}
+        </ol>
+      </details>
+    </section>
   );
 }

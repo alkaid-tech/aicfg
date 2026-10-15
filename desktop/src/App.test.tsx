@@ -9,7 +9,12 @@ import { I18nProvider } from "./I18nProvider";
 import { createTranslator, LANGUAGE_STORAGE_KEY } from "./i18n";
 import type { Response, State } from "./types";
 
-vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn() }));
+vi.mock("@tauri-apps/api/core", () => ({
+  invoke: vi.fn(),
+  Channel: class {
+    onmessage = (_message: string) => {};
+  },
+}));
 vi.mock("@tauri-apps/api/app", () => ({
   getVersion: vi.fn().mockResolvedValue("9.8.7"),
 }));
@@ -539,6 +544,131 @@ describe.each([
       language.error,
     );
     expect(button(t("Cancel"), dialog()).disabled).toBe(false);
+  });
+});
+
+describe("Target preview feedback", () => {
+  beforeEach(async () => {
+    await click("Target projects");
+    await click("Example projectSynced/test/project");
+  });
+
+  it("explains empty selections and opens an explicit no-change preview", async () => {
+    expect(container.textContent).toContain("No presets selected.");
+    expect(container.textContent).toContain("temporary directory");
+    vi.mocked(invoke).mockResolvedValueOnce({
+      ...response(),
+      preview: {
+        token: "empty-plan",
+        changes: [],
+        resolution: { skills: [], rules: [], conflicts: {} },
+      },
+    });
+    await click("Save and preview changes");
+    expect(dialog().textContent).toContain("No file changes.");
+    expect(dialog().textContent).toContain("0 skills · 0 rules");
+    expect(vi.mocked(invoke)).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(invoke).mock.calls[0][1]).toMatchObject({
+      request: {
+        action: "preview",
+        data: { id: "target-project", choices: {} },
+      },
+    });
+  });
+
+  it("saves edited exclusions before previewing and waits for confirmation to apply", async () => {
+    await act(async () => {
+      container
+        .querySelector<HTMLInputElement>(".excluded-skills input")!
+        .click();
+    });
+    expect(button("Save and preview changes").disabled).toBe(false);
+    expect(container.textContent).not.toContain("Save configuration");
+    const savedState = structuredClone(fixture);
+    savedState.targets[0].config.excluded = ["skill-review"];
+    let resolveSave!: (value: Response) => void;
+    vi.mocked(invoke).mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          resolveSave = resolve as typeof resolveSave;
+        }),
+    );
+    vi.mocked(invoke).mockResolvedValueOnce({
+      ...response(savedState),
+      preview: {
+        token: "saved-plan",
+        changes: [],
+        resolution: { skills: [], rules: [], conflicts: {} },
+      },
+    });
+    await click("Save and preview changes");
+    expect(button("Save and preview changes").disabled).toBe(true);
+    expect(invoke).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(invoke).mock.calls[0][1]).toMatchObject({
+      request: {
+        action: "save_target",
+        data: { id: "target-project", config: savedState.targets[0].config },
+      },
+    });
+    await act(async () => resolveSave(response(savedState)));
+    expect(invoke).toHaveBeenCalledTimes(2);
+    expect(vi.mocked(invoke).mock.calls[1][1]).toMatchObject({
+      request: { action: "preview" },
+    });
+    expect(dialog().textContent).toContain("No file changes.");
+    await click("Confirm and apply changes", dialog());
+    expect(vi.mocked(invoke).mock.calls[2][1]).toMatchObject({
+      request: {
+        action: "apply",
+        data: { token: "saved-plan", decisions: {} },
+      },
+    });
+  });
+
+  it("keeps the draft and does not preview when saving fails", async () => {
+    await act(async () => {
+      container
+        .querySelector<HTMLInputElement>(".excluded-skills input")!
+        .click();
+    });
+    vi.mocked(invoke).mockRejectedValueOnce(
+      "Could not save target configuration",
+    );
+    await click("Save and preview changes");
+    expect(invoke).toHaveBeenCalledTimes(1);
+    expect(
+      container.querySelector<HTMLInputElement>(".excluded-skills input")!
+        .checked,
+    ).toBe(true);
+    expect(container.textContent).toContain(
+      "Could not save target configuration",
+    );
+    expect(button("Save and preview changes").disabled).toBe(false);
+    expect(container.querySelector("dialog")).toBeNull();
+  });
+
+  it("shows live backend activity and keeps failure details visible", async () => {
+    let reject!: (reason: Error) => void;
+    vi.mocked(invoke).mockImplementationOnce((_command, args) => {
+      const channel = (args as { onProgress: unknown }).onProgress as {
+        onmessage: (message: string) => void;
+      };
+      channel.onmessage("Installing skill in temporary directory: Code review");
+      return new Promise((_resolve, failure) => {
+        reject = failure;
+      });
+    });
+    await click("Save and preview changes");
+    expect(container.querySelector(".operation-log")?.textContent).toContain(
+      "Installing skill in temporary directory: Code review",
+    );
+    expect(button("Save and preview changes").disabled).toBe(true);
+    await act(async () => reject(new Error("Installer unavailable")));
+    expect(container.querySelector(".operation-log")?.textContent).toContain(
+      "Operation failed.",
+    );
+    expect(container.textContent).toContain("Installer unavailable");
+    expect(button("Save and preview changes").disabled).toBe(false);
   });
 });
 

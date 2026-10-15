@@ -44,8 +44,10 @@ The macOS bundle is generated at `desktop/src-tauri/target/release/bundle/macos/
 1. Connect, initialize, or clone a configuration repository in its own directory.
 2. Add skills to the Library from a GitHub URL, `owner/repo`, or a local Git repository.
 3. Create a preset, then add skills, rules, and any included presets on its detail page.
-4. Add a target project, select presets and adapters, and save its configuration.
-5. Preview the file changes, resolve any conflicts, and confirm the application.
+4. Add a target project, select presets and adapters, then click **Save and preview changes**.
+5. Review the file changes, resolve any conflicts, then click **Confirm and apply changes**.
+
+Preview reads the saved target configuration and compares the desired skills, rules, and adapters with existing files. It reuses prepared skill caches when possible; uncached skills run through the installer in a temporary directory under the configuration repository's ignored local data. Source fetching and first-time preparation can take time. Preview does not create a Git worktree or apply files to the target project. The activity log shows preparation and application stages, including the current skill or file. Empty selections and previews without file changes are explained in the interface.
 
 The installed application version appears in the sidebar and Settings.
 

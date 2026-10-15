@@ -1,6 +1,74 @@
 // English source messages are stable keys. Each entry contains Chinese and Japanese.
 export const messages = {
   "Application version": ["应用版本", "アプリのバージョン"],
+  "Activity log": ["活动日志", "アクティビティログ"],
+  "Show activity details": ["显示活动详情", "詳細を表示"],
+  "Preparing preview": ["正在准备预览", "プレビューを準備中"],
+  "Applying confirmed changes": [
+    "正在应用已确认的变更",
+    "確認済みの変更を適用中",
+  ],
+  "Operation completed": ["操作已完成", "操作が完了しました"],
+  "Operation failed. See the error message for details": [
+    "操作失败，请查看错误详情",
+    "操作に失敗しました。エラーの詳細を確認してください",
+  ],
+  "Resolving saved presets and skill versions": [
+    "正在解析已保存的预设和技能版本",
+    "保存済みプリセットとスキルのバージョンを解決中",
+  ],
+  "Reading skill source: {name}": [
+    "正在读取技能源：{name}",
+    "スキルソースを読み込み中: {name}",
+  ],
+  "Fetching skill source: {name}": [
+    "正在获取技能源：{name}",
+    "スキルソースを取得中: {name}",
+  ],
+  "Checking prepared skill cache: {name}": [
+    "正在检查技能准备缓存：{name}",
+    "準備済みスキルのキャッシュを確認中: {name}",
+  ],
+  "Installing skill in temporary directory: {name}": [
+    "正在临时目录安装技能：{name}",
+    "一時ディレクトリでスキルをインストール中: {name}",
+  ],
+  "Reused prepared skill cache: {name}": [
+    "已复用技能准备缓存：{name}",
+    "準備済みスキルのキャッシュを再利用: {name}",
+  ],
+  "Generating rules and comparing target files": [
+    "正在生成规则并比较目标文件",
+    "ルールを生成して対象ファイルを比較中",
+  ],
+  "Preview ready. Target files have not been changed": [
+    "预览已就绪，目标文件尚未更改",
+    "プレビューが完了しました。対象ファイルは変更されていません",
+  ],
+  "Validating preview before applying changes": [
+    "正在应用前验证预览",
+    "変更の適用前にプレビューを検証中",
+  ],
+  "Applying file change: {path}": [
+    "正在应用文件变更：{path}",
+    "ファイルの変更を適用中: {path}",
+  ],
+  "Preview compares saved presets with target files. Uncached skills are prepared with the installer in a temporary directory and cached locally. It may fetch sources and take a while. Target files change only after confirmation.":
+    [
+      "预览会比较已保存的预设和目标文件。未缓存的技能会由安装器在临时目录中准备，并缓存在本地；获取源内容可能需要一些时间。确认后才会修改目标文件。",
+      "プレビューでは保存済みプリセットと対象ファイルを比較します。未キャッシュのスキルは一時ディレクトリでインストーラーにより準備され、ローカルにキャッシュされます。ソースの取得に時間がかかる場合があります。対象ファイルは確認後に変更されます。",
+    ],
+  "No presets selected. Preview will only check adapters and previously managed files; it will not add preset skills or rules.":
+    [
+      "尚未选择预设。预览仅检查适配器和此前管理的文件，不会添加预设中的技能或规则。",
+      "プリセットが選択されていません。プレビューではアダプターと既存の管理対象ファイルのみを確認し、プリセットのスキルやルールは追加しません。",
+    ],
+  "No file changes. The target files already match the saved configuration. Confirm to record the application state.":
+    [
+      "没有文件变更，目标文件已与保存的配置一致。确认可记录应用状态。",
+      "ファイルの変更はありません。対象ファイルは保存済みの設定と一致しています。確認すると適用状態を記録します。",
+    ],
+
   Metadata: ["元数据", "メタデータ"],
   Library: ["技能库", "ライブラリ"],
   "Reusable capabilities": ["可复用的能力", "再利用できる機能"],
@@ -211,7 +279,12 @@ export const messages = {
     "从此目标项目中排除",
     "この対象プロジェクトから除外",
   ],
-  "Save configuration": ["保存配置", "設定を保存"],
+  "Save and preview changes": ["保存并预览变更", "保存して変更をプレビュー"],
+  "Save and preview saves your configuration and shows file changes. Target files change only after you confirm and apply.":
+    [
+      "保存并预览会保存配置并显示文件变更。确认并应用后才会修改目标文件。",
+      "設定を保存してファイルの変更をプレビューします。対象ファイルは確認して適用した後に変更されます。",
+    ],
   "Preview changes": ["预览变更", "変更をプレビュー"],
   "Save the configuration to preview file changes.": [
     "保存配置后即可预览文件变更。",
