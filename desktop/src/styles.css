@@ -1261,3 +1261,11 @@ summary span {
     transition: none !important;
   }
 }
+
+.excluded-skills > summary {
+  color: var(--muted);
+  background: transparent;
+}
+.excluded-skills[open] > summary {
+  color: inherit;
+}

@@ -1062,7 +1062,7 @@ export default function App() {
                           setTargetConfig({ ...targetConfig, agents })
                         }
                       />
-                      <details>
+                      <details className="excluded-skills">
                         <summary>
                           {t("Excluded skills")}{" "}
                           <span>{targetConfig.excluded.length}</span>
