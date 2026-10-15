@@ -3,12 +3,16 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { invoke } from "@tauri-apps/api/core";
+import { getVersion } from "@tauri-apps/api/app";
 import App from "./App";
 import { I18nProvider } from "./I18nProvider";
 import { createTranslator, LANGUAGE_STORAGE_KEY } from "./i18n";
 import type { Response, State } from "./types";
 
 vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn() }));
+vi.mock("@tauri-apps/api/app", () => ({
+  getVersion: vi.fn().mockResolvedValue("9.8.7"),
+}));
 vi.mock("@tauri-apps/plugin-dialog", () => ({ open: vi.fn() }));
 
 const fixture: State = {
@@ -124,6 +128,7 @@ beforeEach(async () => {
   HTMLDialogElement.prototype.close = function () {
     this.open = false;
   };
+  vi.mocked(getVersion).mockResolvedValue("9.8.7");
   vi.mocked(invoke).mockReset();
   vi.mocked(invoke).mockResolvedValue(response());
   container = document.createElement("div");
@@ -535,4 +540,14 @@ describe.each([
     );
     expect(button(t("Cancel"), dialog()).disabled).toBe(false);
   });
+});
+
+it("shows the installed application version in the sidebar and settings", async () => {
+  expect(container.querySelector(".sidebar-bottom")?.textContent).toContain(
+    "v9.8.7",
+  );
+  await click("Settings");
+  expect(container.querySelector(".language-settings")?.textContent).toContain(
+    "Application version: 9.8.7",
+  );
 });

@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { getVersion } from "@tauri-apps/api/app";
+import { version as packageVersion } from "../package.json";
 import { open } from "@tauri-apps/plugin-dialog";
 import { ReactFlow, Background, Controls } from "@xyflow/react";
 import { Markdown } from "./Markdown";
@@ -231,6 +233,7 @@ export default function App() {
   const [busy, setBusy] = useState(false),
     [notice, setNotice] = useState(""),
     [error, setError] = useState("");
+  const [appVersion, setAppVersion] = useState(packageVersion);
   const [query, setQuery] = useState(""),
     [selectedSkill, setSelectedSkill] = useState(""),
     [markdown, setMarkdown] = useState<string | null>("");
@@ -323,8 +326,12 @@ export default function App() {
     }
   }
   useEffect(() => {
-    if ("__TAURI_INTERNALS__" in window) void run({ action: "state" });
-    else setNotice("Use the desktop app to connect a local repository.");
+    if ("__TAURI_INTERNALS__" in window) {
+      void run({ action: "state" });
+      void getVersion()
+        .then(setAppVersion)
+        .catch(() => {});
+    } else setNotice("Use the desktop app to connect a local repository.");
   }, []);
   useEffect(() => {
     if (target) setTargetConfig(structuredClone(target.config));
@@ -511,6 +518,7 @@ export default function App() {
                 : t("No configuration repository connected")}
             </strong>
             <small>{translateBackendMessage(t, state.git_status)}</small>
+            <small>aicfg · v{appVersion}</small>
           </div>
         </div>
       </aside>
@@ -620,6 +628,9 @@ export default function App() {
             className="language-settings form"
             aria-label={t("Language settings")}
           >
+            <p>
+              {t("Application version")}: <strong>{appVersion}</strong>
+            </p>
             <label>
               {t("Language")}
               <select

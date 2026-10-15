@@ -1,5 +1,6 @@
 // English source messages are stable keys. Each entry contains Chinese and Japanese.
 export const messages = {
+  "Application version": ["应用版本", "アプリのバージョン"],
   Metadata: ["元数据", "メタデータ"],
   Library: ["技能库", "ライブラリ"],
   "Reusable capabilities": ["可复用的能力", "再利用できる機能"],

@@ -47,6 +47,8 @@ The macOS bundle is generated at `desktop/src-tauri/target/release/bundle/macos/
 4. Add a target project, select presets and adapters, and save its configuration.
 5. Preview the file changes, resolve any conflicts, and confirm the application.
 
+The installed application version appears in the sidebar and Settings.
+
 Shared configuration is committed and pushed when it is saved. Changes to target project repositories are never staged or committed by aicfg.
 
 ## Documentation
