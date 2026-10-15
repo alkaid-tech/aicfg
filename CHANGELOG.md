@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.0](https://github.com/alkaid-tech/aicfg/compare/v0.1.2...v0.2.0) (2026-10-15)
+
+
+### Features
+
+* **desktop:** clarify target previews and application status ([#11](https://github.com/alkaid-tech/aicfg/issues/11)) ([4b8e85d](https://github.com/alkaid-tech/aicfg/commit/4b8e85d72c9ba81b57e6737f542513cdaf569a45))
+
 ## [0.1.2](https://github.com/alkaid-tech/aicfg/compare/v0.1.1...v0.1.2) (2026-10-13)
 
 
