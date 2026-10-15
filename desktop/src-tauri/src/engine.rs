@@ -205,6 +205,13 @@ impl Engine {
         }
     }
     pub fn execute(&mut self, request: Request) -> Result<Response> {
+        self.execute_with_progress(request, &|_| {})
+    }
+    pub fn execute_with_progress(
+        &mut self,
+        request: Request,
+        progress: &dyn Fn(&str),
+    ) -> Result<Response> {
         let mut notice = None;
         let mut candidates = None;
         let mut preview = None;
@@ -563,7 +570,8 @@ impl Engine {
                 self.plan = None;
             }
             Request::Preview { id, choices } => {
-                let plan = Plan::build(self.repo()?, &id, choices)?;
+                let plan = Plan::build_with_progress(self.repo()?, &id, choices, progress)?;
+                progress("Preview ready. Target files have not been changed");
                 preview = Some(plan.view());
                 self.plan = Some(plan);
             }
@@ -572,7 +580,7 @@ impl Engine {
                 if plan.token != token || token.is_empty() {
                     return Err("Preview expired. Preview again".into());
                 }
-                notice = Some(plan.apply(self.repo()?, &decisions)?);
+                notice = Some(plan.apply_with_progress(self.repo()?, &decisions, progress)?);
             }
             Request::Git { operation } => {
                 notice = Some(self.repo()?.git(&operation)?);

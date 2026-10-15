@@ -743,3 +743,37 @@ fn modifying_an_unchanged_managed_file_after_preview_invalidates_the_plan() {
             .contains("Preview again")
     );
 }
+
+#[test]
+fn preview_and_apply_report_progress_at_the_actual_work_stages() {
+    use std::cell::RefCell;
+    let (_temp, mut repo, id) = rule_repository();
+    let root = PathBuf::from(&repo.local.targets[0].path);
+    let messages = RefCell::new(Vec::new());
+    let progress = |message: &str| messages.borrow_mut().push(message.to_string());
+    let plan = Plan::build_with_progress(&mut repo, &id, BTreeMap::new(), &progress).unwrap();
+    assert_eq!(
+        messages.borrow()[0],
+        "Resolving saved presets and skill versions"
+    );
+    assert!(
+        messages
+            .borrow()
+            .iter()
+            .any(|m| m == "Generating rules and comparing target files")
+    );
+    assert!(!root.join(".agents/rules").exists());
+    messages.borrow_mut().clear();
+    plan.apply_with_progress(&mut repo, &BTreeMap::new(), &progress)
+        .unwrap();
+    assert_eq!(
+        messages.borrow()[0],
+        "Validating preview before applying changes"
+    );
+    assert!(
+        messages
+            .borrow()
+            .iter()
+            .any(|m| m.starts_with("Applying file change: "))
+    );
+}

@@ -76,6 +76,13 @@ const diagnosticMessages = (Object.keys(messages) as Message[])
   .map((message) => ({ message, prefix: message.slice(0, -"{error}".length) }));
 
 const backendTemplates: readonly Message[] = [
+  "Reading skill source: {name}",
+  "Fetching skill source: {name}",
+  "Checking prepared skill cache: {name}",
+  "Installing skill in temporary directory: {name}",
+  "Reused prepared skill cache: {name}",
+  "Applying file change: {path}",
+
   "Preset reference cycle: {names}",
   "Preset has been deleted or does not exist: {id}. Choose another preset",
   "{name} references a missing skill",
