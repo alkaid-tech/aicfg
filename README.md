@@ -19,7 +19,7 @@ The current implementation uses Rust, Tauri 2, React, and TypeScript. macOS is t
 
 ## Run locally
 
-You need macOS, Xcode Command Line Tools, Rust stable, Node.js 22.12 or newer, and Git. The application needs `git` and `npx` on `PATH`; its first skill installation may require network access.
+You need macOS, Xcode Command Line Tools, Rust stable, Node.js 22.12 or newer with npm/npx, and Git. The application discovers your shell's `PATH` when launched from Finder; its first skill installation may require network access.
 
 ```sh
 git clone https://github.com/alkaid-tech/aicfg.git

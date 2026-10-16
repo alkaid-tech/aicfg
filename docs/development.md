@@ -9,7 +9,7 @@ For the desktop application, use macOS with:
 - Node.js 22.12 or newer, with npm and npx.
 - Git, with an identity configured for configuration repository commits.
 
-Private repository access uses your existing Git authentication. At runtime, `git` and `npx` must be available on the application's `PATH`. Skill installation uses the pinned `skills@1.7.2` CLI.
+Private repository access uses your existing Git authentication. At runtime, Git and Node.js (including npm/npx) must be installed locally. Skill installation uses the pinned `skills@1.7.2` CLI.
 
 ## Start the desktop app
 
@@ -49,7 +49,13 @@ npm run tauri -- build --debug
 open src-tauri/target/debug/bundle/macos/aicfg.app
 ```
 
-The application does not bundle Node.js or expose runtime executable path settings yet. If Finder launches cannot find `npx`, start the development app from a terminal with Node.js configured.
+### Runtime executable discovery
+
+The application does not bundle Node.js. On macOS, aicfg reads `PATH` from your interactive login shell on the first external command, then reuses it for Git, npx, and their child processes. This allows Finder launches to use Node.js configured through Homebrew, nvm, fnm, Volta, asdf, or mise. Shell startup runs in your home directory with a five-second timeout; shell startup messages are ignored. If it fails or times out, aicfg keeps its inherited paths and adds common Homebrew and version-manager directories, plus the system paths.
+
+The discovered path is passed only to child processes. Repository paths and arguments are never interpolated into the shell probe. Empty and relative path entries are excluded so a target repository cannot supply a runtime executable through the current directory.
+
+If npx is still unavailable, verify `node --version` and `npx --version` in a new terminal. Install Node.js 22.12 or newer with npm if needed, or fix your shell's Node.js initialization, then quit and reopen aicfg. Restart the application after changing Node.js versions or shell configuration. Unusual installation paths must be added to your shell's `PATH`; runtime executable path settings are not available yet.
 
 ## Verification
 

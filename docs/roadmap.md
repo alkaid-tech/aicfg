@@ -6,6 +6,7 @@ The current release provides a working local workflow from collecting skills to 
 
 - A macOS desktop runtime using Rust, Tauri 2, React, and TypeScript.
 - Automated version PRs, changelogs, and macOS Universal Release packages.
+- Shell PATH discovery for Git and Node.js when launched from Finder.
 - GitHub HTTPS and local Git skill sources, exact source versions, and content fingerprints.
 - A Library, composable presets, scoped Markdown rules, and cycle detection.
 - Shared preset and local target dependency graphs with click-to-focus navigation.

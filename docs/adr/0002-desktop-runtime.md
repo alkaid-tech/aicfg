@@ -16,7 +16,7 @@ Pin skill installation to `skills@1.7.2`. Install in project-level copy mode ins
 
 ## Consequences
 
-Development requires both Rust and Node.js. The runtime currently also depends on local Git and npx. Executable path settings, formal signing, and distribution remain future work.
+Development requires both Rust and Node.js. The runtime also depends on local Git and npx, using the interactive login shell's PATH when launched from Finder. Executable path settings, formal signing, and distribution remain future work.
 
 This decision establishes the first macOS workflow. It does not add other desktop platforms or dynamic loading of third-party adapters.
 

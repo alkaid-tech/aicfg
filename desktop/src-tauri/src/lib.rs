@@ -3,6 +3,8 @@ pub mod engine;
 pub mod files;
 pub mod planner;
 pub mod repository;
+#[cfg(target_os = "macos")]
+mod runtime;
 pub mod source;
 
 #[cfg(feature = "desktop")]
