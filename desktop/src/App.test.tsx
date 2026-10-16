@@ -7,7 +7,7 @@ import { getVersion } from "@tauri-apps/api/app";
 import App from "./App";
 import { I18nProvider } from "./I18nProvider";
 import { createTranslator, LANGUAGE_STORAGE_KEY } from "./i18n";
-import type { Response, State } from "./types";
+import type { Preview, Response, State } from "./types";
 
 vi.mock("@tauri-apps/api/core", () => ({
   invoke: vi.fn(),
@@ -548,9 +548,141 @@ describe.each([
 });
 
 describe("Target preview feedback", () => {
+  const conflictPaths = Array.from(
+    { length: 48 },
+    (_, index) => `.agents/skills/review/file-${index}.md`,
+  );
+  const conflictPreview: Preview = {
+    token: "conflict-plan",
+    changes: [
+      {
+        path: ".aicfg.toml",
+        kind: "Update",
+        before: "Old configuration",
+        after: "New configuration",
+        conflict: false,
+      },
+      ...conflictPaths.map((path) => ({
+        path,
+        kind: "Conflict",
+        before: "Local content",
+        after: "Preset content",
+        conflict: true,
+      })),
+    ],
+    resolution: { skills: [], rules: [], conflicts: {} },
+  };
+
+  async function openConflictPreview() {
+    vi.mocked(invoke).mockResolvedValueOnce({
+      ...response(),
+      preview: structuredClone(conflictPreview),
+    });
+    await click("Save and preview changes");
+  }
+
+  function conflictSelect(label: string): HTMLSelectElement {
+    const element = [...dialog().querySelectorAll("label")]
+      .find((element) => element.firstChild?.textContent === label)
+      ?.querySelector("select");
+    if (!element) throw new Error(`Select not found: ${label}`);
+    return element;
+  }
+
+  async function chooseConflictOption(label: string, value: string) {
+    await act(async () => {
+      const element = conflictSelect(label);
+      element.value = value;
+      element.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+  }
+
   beforeEach(async () => {
     await click("Target projects");
     await click("Example projectSynced/test/project");
+  });
+
+  it.each(["takeover", "replace", "skip"])(
+    "resolves a long conflict list with the bulk %s choice and waits for confirmation",
+    async (decision) => {
+      await openConflictPreview();
+      expect(dialog().textContent).toContain("0 of 48 conflicts resolved");
+      expect(button("Confirm and apply changes", dialog()).disabled).toBe(true);
+
+      await chooseConflictOption("Apply to all conflicts", decision);
+      expect(dialog().textContent).toContain("48 of 48 conflicts resolved");
+      expect(button("Confirm and apply changes", dialog()).disabled).toBe(
+        false,
+      );
+      expect(invoke).toHaveBeenCalledTimes(1);
+
+      await click("Confirm and apply changes", dialog());
+      expect(vi.mocked(invoke).mock.calls[1][1]).toMatchObject({
+        request: {
+          action: "apply",
+          data: {
+            token: "conflict-plan",
+            decisions: Object.fromEntries(
+              conflictPaths.map((path) => [path, decision]),
+            ),
+          },
+        },
+      });
+      expect(container.querySelector("dialog")).toBeNull();
+    },
+  );
+
+  it("finds unresolved conflicts and allows individual overrides after a bulk choice", async () => {
+    await openConflictPreview();
+    await click("Next unresolved conflict", dialog());
+    expect(dialog().querySelector(".diff-view h3")?.textContent).toBe(
+      conflictPaths[0],
+    );
+    await chooseConflictOption("Existing content", "takeover");
+    expect(dialog().textContent).toContain("1 of 48 conflicts resolved");
+    expect(button("Confirm and apply changes", dialog()).disabled).toBe(true);
+    expect(dialog().querySelectorAll(".badge.green")).toHaveLength(1);
+
+    await click("Next unresolved conflict", dialog());
+    expect(dialog().querySelector(".diff-view h3")?.textContent).toBe(
+      conflictPaths[1],
+    );
+    await chooseConflictOption("Apply to all conflicts", "replace");
+    expect(conflictSelect("Existing content").value).toBe("replace");
+    await chooseConflictOption("Existing content", "takeover");
+    expect(
+      conflictSelect("Apply to all conflicts").selectedOptions[0].text,
+    ).toBe("Mixed choices");
+    expect(button("Confirm and apply changes", dialog()).disabled).toBe(false);
+
+    await chooseConflictOption("Existing content", "");
+    expect(dialog().textContent).toContain("47 of 48 conflicts resolved");
+    expect(button("Confirm and apply changes", dialog()).disabled).toBe(true);
+    await chooseConflictOption("Existing content", "takeover");
+    await click("Confirm and apply changes", dialog());
+    expect(vi.mocked(invoke).mock.calls[1][1]).toMatchObject({
+      request: {
+        action: "apply",
+        data: {
+          decisions: Object.fromEntries(
+            conflictPaths.map((path, index) => [
+              path,
+              index === 1 ? "takeover" : "replace",
+            ]),
+          ),
+        },
+      },
+    });
+  });
+
+  it("clears bulk choices when opening a new preview", async () => {
+    await openConflictPreview();
+    await chooseConflictOption("Apply to all conflicts", "replace");
+    await click("Cancel and keep current state", dialog());
+    await openConflictPreview();
+    expect(conflictSelect("Apply to all conflicts").value).toBe("");
+    expect(dialog().textContent).toContain("0 of 48 conflicts resolved");
+    expect(button("Confirm and apply changes", dialog()).disabled).toBe(true);
   });
 
   it("explains empty selections and opens an explicit no-change preview", async () => {
