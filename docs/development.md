@@ -57,6 +57,8 @@ The discovered path is passed only to child processes. Repository paths and argu
 
 If npx is still unavailable, verify `node --version` and `npx --version` in a new terminal. Install Node.js 22.12 or newer with npm if needed, or fix your shell's Node.js initialization, then quit and reopen aicfg. Restart the application after changing Node.js versions or shell configuration. Unusual installation paths must be added to your shell's `PATH`; runtime executable path settings are not available yet.
 
+Local bundles are not automatically signed with a Developer ID or notarized. See the [release guide](releases.md#apple-signing-and-notarization) for signed distribution builds.
+
 ## Verification
 
 Run frontend tests and type checking/build:

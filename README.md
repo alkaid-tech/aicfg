@@ -37,7 +37,7 @@ cd desktop
 npm run bundle
 ```
 
-The macOS bundle is generated at `desktop/src-tauri/target/release/bundle/macos/aicfg.app`. The [release workflow](docs/releases.md) automatically proposes versions and publishes macOS Universal downloads after the release PR is merged. Formal signing and notarization are planned.
+The macOS bundle is generated at `desktop/src-tauri/target/release/bundle/macos/aicfg.app`. The [release workflow](docs/releases.md) automatically proposes versions and publishes macOS Universal downloads after the release PR is merged. With all Apple signing credentials configured, downloads are Developer ID signed and notarized. Until then, releases are explicitly labeled unsigned previews and may be blocked by Gatekeeper. Local bundles require separate signing setup for distribution.
 
 ## First use
 
