@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.1](https://github.com/alkaid-tech/aicfg/compare/v0.2.0...v0.2.1) (2026-10-16)
+
+
+### Bug Fixes
+
+* **macos:** repair npx discovery and support signed releases ([#13](https://github.com/alkaid-tech/aicfg/issues/13)) ([8246d85](https://github.com/alkaid-tech/aicfg/commit/8246d856533f7232860cd730eb40e66d041911a7))
+
 ## [0.2.0](https://github.com/alkaid-tech/aicfg/compare/v0.1.2...v0.2.0) (2026-10-15)
 
 
