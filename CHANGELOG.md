@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.0](https://github.com/alkaid-tech/aicfg/compare/v0.2.1...v0.3.0) (2026-10-16)
+
+
+### Features
+
+* **desktop:** add bulk conflict resolution to target previews ([#15](https://github.com/alkaid-tech/aicfg/issues/15)) ([4a16463](https://github.com/alkaid-tech/aicfg/commit/4a16463027fcfa7b098795414d80ba97a046a84e))
+
 ## [0.2.1](https://github.com/alkaid-tech/aicfg/compare/v0.2.0...v0.2.1) (2026-10-16)
 
 
