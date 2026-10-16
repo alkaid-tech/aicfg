@@ -6,6 +6,8 @@ The current release provides a working local workflow from collecting skills to 
 
 - A macOS desktop runtime using Rust, Tauri 2, React, and TypeScript.
 - Automated version PRs, changelogs, and macOS Universal Release packages.
+- Unsigned preview releases while Apple credentials are unavailable, with automatic Developer ID signing and notarization once configured.
+- Shell PATH discovery for Git and Node.js when launched from Finder.
 - GitHub HTTPS and local Git skill sources, exact source versions, and content fingerprints.
 - A Library, composable presets, scoped Markdown rules, and cycle detection.
 - Shared preset and local target dependency graphs with click-to-focus navigation.
@@ -21,7 +23,6 @@ The current release provides a working local workflow from collecting skills to 
 - Dependency graph highlighting for change propagation and excluded skills.
 - Guided migration of existing Claude directories to the adapter's symbolic link layout.
 - Runtime executable path configuration and a clearer packaged runtime experience.
-- Apple Developer ID signing and notarization for macOS releases.
 
 ## Current limitations
 

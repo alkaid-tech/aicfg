@@ -19,7 +19,7 @@ The current implementation uses Rust, Tauri 2, React, and TypeScript. macOS is t
 
 ## Run locally
 
-You need macOS, Xcode Command Line Tools, Rust stable, Node.js 22.12 or newer, and Git. The application needs `git` and `npx` on `PATH`; its first skill installation may require network access.
+You need macOS, Xcode Command Line Tools, Rust stable, Node.js 22.12 or newer with npm/npx, and Git. The application discovers your shell's `PATH` when launched from Finder; its first skill installation may require network access.
 
 ```sh
 git clone https://github.com/alkaid-tech/aicfg.git
@@ -37,7 +37,7 @@ cd desktop
 npm run bundle
 ```
 
-The macOS bundle is generated at `desktop/src-tauri/target/release/bundle/macos/aicfg.app`. The [release workflow](docs/releases.md) automatically proposes versions and publishes macOS Universal downloads after the release PR is merged. Formal signing and notarization are planned.
+The macOS bundle is generated at `desktop/src-tauri/target/release/bundle/macos/aicfg.app`. The [release workflow](docs/releases.md) automatically proposes versions and publishes macOS Universal downloads after the release PR is merged. With all Apple signing credentials configured, downloads are Developer ID signed and notarized. Until then, releases are explicitly labeled unsigned previews and may be blocked by Gatekeeper. Local bundles require separate signing setup for distribution.
 
 ## First use
 

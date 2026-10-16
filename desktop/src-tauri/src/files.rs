@@ -20,14 +20,21 @@ pub fn atomic_write(path: &Path, bytes: &[u8]) -> Result<()> {
     Ok(())
 }
 pub fn command(cwd: &Path, program: &str, args: &[&str]) -> Result<String> {
-    let output = Command::new(program)
+    let mut command = Command::new(program);
+    #[cfg(target_os = "macos")]
+    command.env("PATH", crate::runtime::path());
+    let output = command
         .current_dir(cwd)
         .args(args)
         .env("GIT_TERMINAL_PROMPT", "0")
         .env("DISABLE_TELEMETRY", "1")
         .output()
         .map_err(|e| {
-            format!("Could not run {program}. Ensure it is installed and available on PATH: {e}")
+            if program == "npx" && e.kind() == std::io::ErrorKind::NotFound {
+                format!("Could not run npx. Install Node.js 22.12 or newer with npm/npx, ensure your login shell can run node and npx, then restart aicfg: {e}")
+            } else {
+                format!("Could not run {program}. Ensure it is installed and available on PATH: {e}")
+            }
         })?;
     if !output.status.success() {
         let message = String::from_utf8_lossy(&output.stderr);

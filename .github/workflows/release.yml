@@ -80,6 +80,47 @@ jobs:
           ref: ${{ needs.release-please.outputs.tag_name }}
       - name: Check release versions
         run: python3 ../scripts/check-release-version.py --tag "$RELEASE_TAG"
+      - name: Select macOS signing mode
+        id: signing
+        env:
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          set -euo pipefail
+          configured=0
+          missing=()
+          for name in APPLE_CERTIFICATE APPLE_CERTIFICATE_PASSWORD APPLE_SIGNING_IDENTITY APPLE_ID APPLE_PASSWORD APPLE_TEAM_ID; do
+            if [[ -z "${!name}" ]]; then
+              missing+=("$name")
+            else
+              configured=$((configured + 1))
+            fi
+          done
+          if [[ "$configured" == 0 ]]; then
+            echo "signed=false" >> "$GITHUB_OUTPUT"
+            echo "asset_suffix=_unsigned" >> "$GITHUB_OUTPUT"
+            echo "::warning::Apple credentials are not configured. Publishing an unsigned, unnotarized macOS preview."
+            echo "### macOS preview: unsigned and not notarized" >> "$GITHUB_STEP_SUMMARY"
+            echo "Gatekeeper may block this download. Configure all Apple secrets to enable Developer ID signing and notarization." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          if [[ ${#missing[@]} != 0 ]]; then
+            for name in "${missing[@]}"; do
+              echo "::error::Missing repository secret: $name. See docs/releases.md."
+            done
+            echo "::error::Apple credentials are incomplete. Refusing to fall back to an unsigned release."
+            exit 1
+          fi
+          if [[ "$APPLE_SIGNING_IDENTITY" != "Developer ID Application:"* ]]; then
+            echo "::error::APPLE_SIGNING_IDENTITY must be a Developer ID Application identity."
+            exit 1
+          fi
+          echo "signed=true" >> "$GITHUB_OUTPUT"
+          echo "asset_suffix=" >> "$GITHUB_OUTPUT"
       - uses: actions/setup-node@v7
         with:
           node-version: "22"
@@ -103,9 +144,42 @@ jobs:
           cargo fmt --all --check
           cargo test --locked --no-default-features
           cargo clippy --locked --all-targets --no-default-features -- -D warnings
-      - name: Build Universal application and DMG
+      - name: Build and sign Universal application and DMG, and notarize application
+        if: steps.signing.outputs.signed == 'true'
+        env:
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         run: CI=true npm run bundle -- --target universal-apple-darwin --bundles app,dmg --ci -- --locked
+      - name: Build ad-hoc signed Universal preview without notarization
+        if: steps.signing.outputs.signed == 'false'
+        env:
+          APPLE_SIGNING_IDENTITY: "-"
+        run: CI=true npm run bundle -- --target universal-apple-darwin --bundles app,dmg --ci -- --locked
+      - name: Notarize and staple DMG
+        if: steps.signing.outputs.signed == 'true'
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          set -euo pipefail
+          dmgs=(src-tauri/target/universal-apple-darwin/release/bundle/dmg/*.dmg)
+          if [[ ${#dmgs[@]} != 1 || ! -f "${dmgs[0]}" ]]; then
+            echo "::error::Expected exactly one DMG."
+            exit 1
+          fi
+          xcrun notarytool submit "${dmgs[0]}" \
+            --apple-id "$APPLE_ID" --password "$APPLE_PASSWORD" --team-id "$APPLE_TEAM_ID" \
+            --wait --timeout 20m
+          xcrun stapler staple "${dmgs[0]}"
       - name: Verify and package release assets
+        env:
+          RELEASE_SIGNED: ${{ steps.signing.outputs.signed }}
+          ASSET_SUFFIX: ${{ steps.signing.outputs.asset_suffix }}
         run: |
           set -euo pipefail
           version="${RELEASE_TAG#v}"
@@ -123,9 +197,16 @@ jobs:
             echo "::error::Expected exactly one DMG."
             exit 1
           fi
+          codesign --verify --deep --strict --verbose=2 "$app"
+          if [[ "$RELEASE_SIGNED" == true ]]; then
+            xcrun stapler validate "$app"
+            spctl --assess --type execute --verbose=2 "$app"
+            codesign --verify --strict --verbose=2 "${dmgs[0]}"
+            xcrun stapler validate "${dmgs[0]}"
+          fi
           mkdir -p release
-          ditto -c -k --keepParent "$app" "release/aicfg_${version}_universal.app.zip"
-          cp "${dmgs[0]}" "release/aicfg_${version}_universal.dmg"
+          ditto -c -k --keepParent "$app" "release/aicfg_${version}_universal${ASSET_SUFFIX}.app.zip"
+          cp "${dmgs[0]}" "release/aicfg_${version}_universal${ASSET_SUFFIX}.dmg"
           cd release
           shasum -a 256 ./*.zip ./*.dmg > SHA256SUMS
       - name: Save release assets
@@ -140,11 +221,51 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
+          RELEASE_SIGNED: ${{ steps.signing.outputs.signed }}
         run: |
           set -euo pipefail
           if [[ "$(gh release view "$RELEASE_TAG" --json isDraft --jq '.isDraft')" != true ]]; then
             echo "::error::Refusing to modify an already published release."
             exit 1
           fi
+          notes="$RUNNER_TEMP/aicfg-release-notes.md"
+          gh release view "$RELEASE_TAG" --json body --jq '.body' > "$notes"
+          python3 - "$notes" <<'PY'
+          import os
+          import sys
+          from pathlib import Path
+
+          path = Path(sys.argv[1])
+          body = path.read_text()
+          start = "<!-- aicfg:macos-signing:begin -->"
+          end = "<!-- aicfg:macos-signing:end -->"
+          if body.startswith(start):
+              body = body.split(end, 1)[1].lstrip("\n")
+          if os.environ["RELEASE_SIGNED"] == "true":
+              notice = "**macOS:** Developer ID signed and notarized."
+          else:
+              notice = (
+                  "> **macOS preview: unsigned and not notarized.**\n"
+                  "> These downloads have no Apple Developer ID signature. "
+                  "macOS Gatekeeper may block them. For a trusted download, use "
+                  "**System Settings → Privacy & Security → Open Anyway** after a blocked launch. "
+                  "See [Apple's instructions](https://support.apple.com/en-us/102445)."
+              )
+          path.write_text(f"{start}\n{notice}\n{end}\n\n{body}")
+          PY
+          gh release edit "$RELEASE_TAG" --notes-file "$notes"
           gh release upload "$RELEASE_TAG" release/* --clobber
+          version="${RELEASE_TAG#v}"
+          other_suffix=_unsigned
+          if [[ "$RELEASE_SIGNED" == false ]]; then
+            other_suffix=
+          fi
+          gh release view "$RELEASE_TAG" --json assets --jq '.assets[].name' > "$RUNNER_TEMP/aicfg-release-assets.txt"
+          while IFS= read -r asset; do
+            case "$asset" in
+              "aicfg_${version}_universal${other_suffix}.app.zip"|"aicfg_${version}_universal${other_suffix}.dmg")
+                gh release delete-asset "$RELEASE_TAG" "$asset" --yes
+                ;;
+            esac
+          done < "$RUNNER_TEMP/aicfg-release-assets.txt"
           gh release edit "$RELEASE_TAG" --draft=false --latest

@@ -26,6 +26,9 @@
   },
   "bundle": {
     "active": true,
+    "macOS": {
+      "hardenedRuntime": true
+    },
     "targets": [
       "app"
     ],
