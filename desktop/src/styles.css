@@ -1156,6 +1156,27 @@ summary span {
   color: #939d86;
   font-size: 11px;
 }
+.conflict-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 16px;
+  padding: 16px;
+  margin-bottom: 20px;
+  background: #fbf3db;
+  border-radius: 5px;
+  font-size: 12px;
+}
+.conflict-toolbar > label {
+  display: grid;
+  gap: 8px;
+  flex: 1 1 260px;
+  min-width: 0;
+}
+.conflict-progress {
+  display: grid;
+  gap: 8px;
+}
 .diff-layout {
   display: grid;
   grid-template-columns: 245px minmax(0, 1fr);

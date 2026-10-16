@@ -109,6 +109,11 @@ const newRule = (): Rule => ({
   paths: [],
   body: "",
 });
+const conflictOptions = [
+  { value: "takeover", label: "Take ownership and keep current content" },
+  { value: "replace", label: "Replace with preset content" },
+  { value: "skip", label: "Skip this time" },
+] as const;
 
 function Modal({
   title,
@@ -262,6 +267,19 @@ export default function App() {
     [decisions, setDecisions] = useState<Record<string, string>>({}),
     [choices, setChoices] = useState<Record<string, string>>({}),
     [changeIndex, setChangeIndex] = useState(0);
+  const diffList = useRef<HTMLDivElement>(null);
+  const conflicts = preview?.changes.filter((change) => change.conflict) ?? [];
+  const unresolvedConflicts = conflicts.filter(
+    (change) => !decisions[change.path],
+  );
+  const resolvedConflictCount = conflicts.length - unresolvedConflicts.length;
+  const bulkDecision =
+    conflicts.length > 0 &&
+    conflicts.every(
+      (change) => decisions[change.path] === decisions[conflicts[0].path],
+    )
+      ? (decisions[conflicts[0].path] ?? "")
+      : "";
   const [updates, setUpdates] = useState<Skill[]>([]),
     [updateIds, setUpdateIds] = useState<string[]>([]),
     [graphMode, setGraphMode] = useState<"presets" | "targets">("presets");
@@ -513,6 +531,17 @@ export default function App() {
       setChangeIndex(0);
       setModal("preview");
     }
+  }
+  function showNextUnresolvedConflict() {
+    if (!preview || !unresolvedConflicts.length) return;
+    const isUnresolved = (change: Preview["changes"][number]) =>
+      change.conflict && !decisions[change.path];
+    let index = preview.changes.findIndex(
+      (change, index) => index > changeIndex && isUnresolved(change),
+    );
+    if (index < 0) index = preview.changes.findIndex(isUnresolved);
+    setChangeIndex(index);
+    diffList.current?.children[index]?.scrollIntoView?.({ block: "nearest" });
   }
   const close = () => {
     setModal("");
@@ -1760,19 +1789,75 @@ export default function App() {
                       })}
                     </span>
                   </div>
+                  {conflicts.length > 0 && (
+                    <div className="conflict-toolbar">
+                      <label>
+                        {t("Apply to all conflicts")}
+                        <select
+                          value={bulkDecision}
+                          disabled={busy}
+                          onChange={(e) => {
+                            const decision = e.target.value;
+                            setDecisions((current) => ({
+                              ...current,
+                              ...Object.fromEntries(
+                                conflicts.map((change) => [
+                                  change.path,
+                                  decision,
+                                ]),
+                              ),
+                            }));
+                          }}
+                        >
+                          <option value="" disabled>
+                            {t(
+                              resolvedConflictCount > 0
+                                ? "Mixed choices"
+                                : "Choose an option",
+                            )}
+                          </option>
+                          {conflictOptions.map((option) => (
+                            <option key={option.value} value={option.value}>
+                              {t(option.label)}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                      <div className="conflict-progress">
+                        <span role="status">
+                          {t("{resolved} of {total} conflicts resolved", {
+                            resolved: resolvedConflictCount,
+                            total: conflicts.length,
+                          })}
+                        </span>
+                        <button
+                          className="secondary"
+                          disabled={busy || !unresolvedConflicts.length}
+                          onClick={showNextUnresolvedConflict}
+                        >
+                          {t("Next unresolved conflict")}
+                        </button>
+                      </div>
+                    </div>
+                  )}
                   {preview.changes.length > 0 ? (
                     <div className="diff-layout">
-                      <div className="diff-list">
+                      <div className="diff-list" ref={diffList}>
                         {preview.changes.map((c, i) => (
                           <button
                             key={c.path}
                             className={changeIndex === i ? "selected" : ""}
+                            aria-current={
+                              changeIndex === i ? "true" : undefined
+                            }
                             onClick={() => setChangeIndex(i)}
                           >
                             <span
-                              className={`badge ${c.conflict ? "yellow" : ""}`}
+                              className={`badge ${c.conflict ? (decisions[c.path] ? "green" : "yellow") : ""}`}
                             >
-                              {translateBackendMessage(t, c.kind)}
+                              {c.conflict && decisions[c.path]
+                                ? t("Resolved")
+                                : translateBackendMessage(t, c.kind)}
                             </span>
                             <span>{c.path}</span>
                           </button>
@@ -1784,28 +1869,26 @@ export default function App() {
                           <label className="conflict-choice">
                             {t("Existing content")}
                             <select
+                              disabled={busy}
                               value={
                                 decisions[preview.changes[changeIndex].path] ??
                                 ""
                               }
-                              onChange={(e) =>
-                                setDecisions({
-                                  ...decisions,
-                                  [preview.changes[changeIndex].path]:
-                                    e.target.value,
-                                })
-                              }
+                              onChange={(e) => {
+                                const decision = e.target.value;
+                                const path = preview.changes[changeIndex].path;
+                                setDecisions((current) => ({
+                                  ...current,
+                                  [path]: decision,
+                                }));
+                              }}
                             >
                               <option value="">{t("Choose an option")}</option>
-                              <option value="takeover">
-                                {t("Take ownership and keep current content")}
-                              </option>
-                              <option value="replace">
-                                {t("Replace with preset content")}
-                              </option>
-                              <option value="skip">
-                                {t("Skip this time")}
-                              </option>
+                              {conflictOptions.map((option) => (
+                                <option key={option.value} value={option.value}>
+                                  {t(option.label)}
+                                </option>
+                              ))}
                             </select>
                           </label>
                         )}
@@ -1834,6 +1917,16 @@ export default function App() {
                       )}
                     </p>
                   )}
+                  {unresolvedConflicts.length > 0 && (
+                    <p className="hint" id="conflict-confirmation-hint">
+                      {t(
+                        "Choose an option for {count} remaining conflicts to enable confirmation.",
+                        {
+                          count: unresolvedConflicts.length,
+                        },
+                      )}
+                    </p>
+                  )}
                   <div className="actions">
                     <button
                       className="secondary"
@@ -1844,11 +1937,11 @@ export default function App() {
                     </button>
                     <button
                       className="primary"
-                      disabled={
-                        busy ||
-                        preview.changes.some(
-                          (c) => c.conflict && !decisions[c.path],
-                        )
+                      disabled={busy || unresolvedConflicts.length > 0}
+                      aria-describedby={
+                        unresolvedConflicts.length > 0
+                          ? "conflict-confirmation-hint"
+                          : undefined
                       }
                       onClick={async () => {
                         if (

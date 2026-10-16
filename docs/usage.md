@@ -42,6 +42,8 @@ Choose **Preview changes** to compare current and desired file contents. Resolve
 - **Replace with preset content**: write the desired content and manage it thereafter.
 - **Skip this time**: preserve the unmanaged content. Skipping any conflicting file in an unmanaged skill skips the entire skill.
 
+Use **Apply to all conflicts** to choose the same action for every file conflict in the current preview. You can then override individual files. The resolved count and **Next unresolved conflict** button help you find any remaining choices in long lists. Confirmation becomes available after every conflict has a choice. These choices reset when you open a new preview.
+
 Confirm the preview to apply changes. Handwritten content outside aicfg's instruction markers is preserved. If relevant configuration or target files change after preview, generate a new preview before applying.
 
 Reapplying a preset clears earlier target version choices. If several presets still require different versions of the same skill, choose a version for this application. The choice is stored for that target without changing shared presets.

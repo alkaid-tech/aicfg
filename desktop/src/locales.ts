@@ -447,6 +447,18 @@ export const messages = {
     "{skills} 個のスキル · {rules} 個のルール",
   ],
   "Existing content": ["现有内容", "既存の内容"],
+  "Apply to all conflicts": ["应用到全部冲突", "すべての競合に適用"],
+  "Mixed choices": ["已选择不同操作", "操作が混在しています"],
+  "{resolved} of {total} conflicts resolved": [
+    "已处理 {resolved} / {total} 个冲突",
+    "{total} 件中 {resolved} 件の競合を解決済み",
+  ],
+  "Next unresolved conflict": ["下一个未处理的冲突", "次の未解決の競合"],
+  "Choose an option for {count} remaining conflicts to enable confirmation.": [
+    "还有 {count} 个冲突未选择操作，全部选择后即可确认。",
+    "残り {count} 件の競合の操作を選択すると、確認できるようになります。",
+  ],
+  Resolved: ["已处理", "解決済み"],
   "Choose an option": ["选择操作", "操作を選択"],
   "Take ownership and keep current content": [
     "接管并保留当前内容",
