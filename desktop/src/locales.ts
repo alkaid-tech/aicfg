@@ -1,5 +1,30 @@
 // English source messages are stable keys. Each entry contains Chinese and Japanese.
 export const messages = {
+  "Primary navigation": ["主导航", "メインナビゲーション"],
+  Workspace: ["工作空间", "ワークスペース"],
+  Documentation: ["文档", "ドキュメント"],
+  "Skill usage": ["技能使用情况", "スキルの使用状況"],
+  "Used in {count} presets": [
+    "用于 {count} 个预设",
+    "{count} 個のプリセットで使用",
+  ],
+  "Used by {count} projects": [
+    "用于 {count} 个项目",
+    "{count} 個のプロジェクトで使用",
+  ],
+  "No presets use this skill yet.": [
+    "尚无预设使用此技能。",
+    "このスキルを使用するプリセットはまだありません。",
+  ],
+  "No projects use this skill yet.": [
+    "尚无项目使用此技能。",
+    "このスキルを使用するプロジェクトはまだありません。",
+  ],
+  "No skills found": ["未找到技能", "スキルが見つかりません"],
+  "Try a different name or source.": [
+    "请尝试其他名称或来源。",
+    "別の名前やソースを試してください。",
+  ],
   "Application version": ["应用版本", "アプリのバージョン"],
   "Activity log": ["活动日志", "アクティビティログ"],
   "Show activity details": ["显示活动详情", "詳細を表示"],

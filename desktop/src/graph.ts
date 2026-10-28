@@ -81,11 +81,11 @@ export function focusDependencyGraph(
           ...node.style,
           opacity: related ? 1 : 0.22,
           border: selected
-            ? "2px solid #3e5141"
+            ? "2px solid var(--color-ink)"
             : related
-              ? "1px solid #859c7c"
+              ? "1px solid var(--color-ink)"
               : node.style?.border,
-          background: selected ? "#dfe9da" : node.style?.background,
+          background: selected ? "var(--color-signal)" : node.style?.background,
           fontWeight: selected ? 600 : node.style?.fontWeight,
         },
       };
@@ -96,7 +96,9 @@ export function focusDependencyGraph(
       style: {
         ...edge.style,
         opacity: relatedEdges.has(edge.id) ? 1 : 0.12,
-        stroke: relatedEdges.has(edge.id) ? "#607b55" : edge.style?.stroke,
+        stroke: relatedEdges.has(edge.id)
+          ? "var(--color-ink)"
+          : edge.style?.stroke,
         strokeWidth: relatedEdges.has(edge.id) ? 2 : 1,
       },
     })),
@@ -127,13 +129,15 @@ export function dependencyGraph(
       ariaLabel: `${t(nodeKinds[id.split(":")[0]])} ${label}`,
       deletable: false,
       style: {
-        borderRadius: 8,
-        border: "1px solid #deded8",
+        borderRadius: "var(--radius)",
+        border: "1px solid var(--color-ink)",
         background: tone,
-        color: "#30332d",
+        color: "var(--color-ink)",
         width: 215,
         padding: 18,
         fontSize: 13,
+        fontWeight: 500,
+        fontFamily: "var(--font-sans)",
       },
       sourcePosition: "right" as Node["sourcePosition"],
       targetPosition: "left" as Node["targetPosition"],
@@ -146,7 +150,7 @@ export function dependencyGraph(
       type: "smoothstep",
       selectable: false,
       deletable: false,
-      style: { stroke: "#a6aba0" },
+      style: { stroke: "var(--color-muted)" },
     });
   if (mode === "targets") {
     state.targets.forEach((view, i) => {
@@ -156,7 +160,9 @@ export function dependencyGraph(
         `${view.target.name} · ${translateBackendMessage(t, view.status)}`,
         0,
         i,
-        view.status === "Synced" ? "#edf3ec" : "#fbf3db",
+        view.status === "Synced"
+          ? "var(--color-success-soft)"
+          : "var(--color-signal-soft)",
       );
       view.config.presets.forEach((p) => link(id, `preset:${p}`));
     });
@@ -167,7 +173,7 @@ export function dependencyGraph(
       preset.name,
       mode === "targets" ? 1 : 0,
       i,
-      "#f5f5f1",
+      "var(--color-signal-soft)",
     );
     preset.includes.forEach((p) => link(`preset:${preset.id}`, `preset:${p}`));
     preset.skills.forEach((s) =>
@@ -189,7 +195,7 @@ export function dependencyGraph(
       skill.name,
       mode === "targets" ? 2 : 1,
       i,
-      "#eaf1f5",
+      "var(--color-surface-raised)",
     ),
   );
   state.config.rules.forEach((rule, i) =>
@@ -198,7 +204,7 @@ export function dependencyGraph(
       rule.name,
       mode === "targets" ? 2 : 1,
       visibleSkills.length + i,
-      "#f2ece4",
+      "var(--color-orange-soft)",
     ),
   );
   // Missing references remain visible instead of silently removing affected edges.
@@ -211,7 +217,7 @@ export function dependencyGraph(
         t("This reference no longer exists. Choose another item."),
         1,
         state.config.presets.length + i,
-        "#fdebec",
+        "var(--color-danger-soft)",
       ),
     );
   return { nodes, edges };

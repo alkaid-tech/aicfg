@@ -804,8 +804,8 @@ describe("Target preview feedback", () => {
   });
 });
 
-it("shows the installed application version in the sidebar and settings", async () => {
-  expect(container.querySelector(".sidebar-bottom")?.textContent).toContain(
+it("shows the installed application version in the status bar and settings", async () => {
+  expect(container.querySelector(".workspace-bar")?.textContent).toContain(
     "v9.8.7",
   );
   await click("Settings");
