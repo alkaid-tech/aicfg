@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.0](https://github.com/alkaid-tech/aicfg/compare/v0.3.0...v0.4.0) (2026-10-28)
+
+
+### Features
+
+* **desktop:** adopt Signal Block design system ([#17](https://github.com/alkaid-tech/aicfg/issues/17)) ([543e8a6](https://github.com/alkaid-tech/aicfg/commit/543e8a631b8641a999ac6afb6ed5b947c2bc4420))
+
 ## [0.3.0](https://github.com/alkaid-tech/aicfg/compare/v0.2.1...v0.3.0) (2026-10-16)
 
 
