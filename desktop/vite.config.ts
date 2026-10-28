@@ -9,5 +9,10 @@ export default defineConfig({
     strictPort: true,
     watch: { ignored: ["**/src-tauri/**"] },
   },
-  build: { target: "safari15" },
+  build: {
+    target: "safari15",
+    rollupOptions: {
+      input: { app: "index.html", designSystem: "design-system.html" },
+    },
+  },
 });

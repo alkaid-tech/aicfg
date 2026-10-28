@@ -12,6 +12,7 @@ aicfg manages agent skills and rules through reusable presets. Its shared config
 ## Understand and contribute
 
 - [Architecture](architecture.md): modules and the preview-to-application workflow.
+- [Design system](design-system.md): Signal Block foundations, components, states, and the visual reference.
 - [Contributing](../CONTRIBUTING.md): issues, pull requests, commits, and licensing.
 - [Releases](releases.md): automatic versioning, macOS packaging, and recovery.
 - [Roadmap and limitations](roadmap.md): supported behavior and planned work.

@@ -22,7 +22,10 @@ import {
   Check,
   ChevronRight,
   LoaderCircle,
+  Plug,
+  ChevronDown,
 } from "lucide-react";
+import brandIcon from "../assets/aicfg.svg";
 import type {
   Candidate,
   Config,
@@ -39,6 +42,7 @@ import { canFocusNode, dependencyGraph, focusDependencyGraph } from "./graph";
 import { CreatePresetForm, PresetDetail } from "./PresetEditor";
 import { useI18n } from "./I18nProvider";
 import { translateBackendMessage } from "./i18n";
+import { getSkillUsage } from "./skillUsage";
 
 type Page = "library" | "presets" | "rules" | "targets" | "graph" | "settings";
 type Deletion = {
@@ -297,6 +301,10 @@ export default function App() {
   const targetDirty =
     !!target && JSON.stringify(target.config) !== JSON.stringify(targetConfig);
   const skill = state.config.library.find((s) => s.id === selectedSkill);
+  const skillUsage = useMemo(
+    () => getSkillUsage(state, selectedSkill),
+    [state, selectedSkill],
+  );
   const graph = useMemo(
     () => dependencyGraph(state, graphMode, t),
     [state, graphMode, t],
@@ -559,54 +567,58 @@ export default function App() {
       }
       aria-busy={busy}
     >
-      <aside className="sidebar">
+      <header className="app-topbar">
         <div className="brand">
-          <span className="brand-mark">a</span>
-          <span>
-            aicfg<span className="brand-dot">.</span>
-          </span>
+          <img src={brandIcon} className="brand-mark" alt="" />
+          <span>aicfg</span>
         </div>
-        <div className="workspace-label">{t("YOUR AGENT WORKSPACE")}</div>
-        <nav>
+        <nav aria-label={t("Primary navigation")}>
           {pages.map((p) => (
             <button
               className={page === p.id ? "nav-item active" : "nav-item"}
               key={p.id}
+              aria-label={t(p.label)}
+              aria-current={page === p.id ? "page" : undefined}
               disabled={busy}
               onClick={() => navigate(p.id)}
             >
-              <p.icon size={18} strokeWidth={1.6} />
-              {t(p.label)}
-              {p.id === "library" && <span>{state.config.library.length}</span>}
+              <p.icon size={18} strokeWidth={1.8} />
+              <span className="nav-label">{t(p.label)}</span>
+              {p.id === "library" && (
+                <span className="nav-count">{state.config.library.length}</span>
+              )}
+              {p.id === "presets" && (
+                <span className="nav-count">{state.config.presets.length}</span>
+              )}
+              {p.id === "rules" && (
+                <span className="nav-count">{state.config.rules.length}</span>
+              )}
+              {p.id === "targets" && (
+                <span className="nav-count">{state.targets.length}</span>
+              )}
             </button>
           ))}
         </nav>
-        <div className="sidebar-bottom">
-          <span className={`status-dot ${state.root ? "connected" : ""}`} />
-          <div>
-            <strong>
-              {state.root
-                ? t("Configuration repository connected")
-                : t("No configuration repository connected")}
-            </strong>
-            <small>{translateBackendMessage(t, state.git_status)}</small>
-            <small>aicfg · v{appVersion}</small>
-          </div>
-        </div>
-      </aside>
+      </header>
       <main
-        className={
-          page === "library" && state.root ? "library-page" : undefined
-        }
+        className={`page page-${page}${state.root ? " connected-page" : ""}${page === "library" && state.root ? " library-page" : ""}`}
       >
         <header className="page-header">
-          <div>
-            <p className="eyebrow">
-              {presetDetail
-                ? t("PRESET / DETAILS AND EDITING")
-                : t(current.eyebrow)}
-            </p>
-            <h1>{presetDetail ? storedPreset.name : t(current.title)}</h1>
+          <div className="page-heading">
+            <span className="page-index" aria-hidden="true">
+              {String(pages.findIndex((p) => p.id === page) + 1).padStart(
+                2,
+                "0",
+              )}
+            </span>
+            <div>
+              <p className="eyebrow">
+                {presetDetail
+                  ? t("PRESET / DETAILS AND EDITING")
+                  : t(current.eyebrow)}
+              </p>
+              <h1>{presetDetail ? storedPreset.name : t(current.title)}</h1>
+            </div>
           </div>
           <div className="header-actions">
             {state.root && (
@@ -815,26 +827,32 @@ export default function App() {
                   </div>
                   <div className="skill-list">
                     {library.length ? (
-                      library.map((item) => (
+                      library.map((item, index) => (
                         <div
                           className={`skill-row ${selectedSkill === item.id ? "selected" : ""}`}
                           key={item.id}
                         >
                           <button
                             className="row-main"
+                            aria-pressed={selectedSkill === item.id}
                             disabled={busy}
                             onClick={() => void readSkill(item.id)}
                           >
-                            <div className="row-title">
-                              <BookOpen size={16} />
-                              <strong>{item.name}</strong>
+                            <span className="row-index" aria-hidden="true">
+                              {String(index + 1).padStart(2, "0")}
+                            </span>
+                            <div className="row-content">
+                              <div className="row-title">
+                                <BookOpen size={16} />
+                                <strong>{item.name}</strong>
+                              </div>
+                              <p>{item.description || t("Source skill")}</p>
+                              <small>
+                                {item.source
+                                  .replace("https://github.com/", "")
+                                  .replace(".git", "")}
+                              </small>
                             </div>
-                            <p>{item.description || t("Source skill")}</p>
-                            <small>
-                              {item.source
-                                .replace("https://github.com/", "")
-                                .replace(".git", "")}
-                            </small>
                           </button>
                           <button
                             className="icon-button"
@@ -848,8 +866,16 @@ export default function App() {
                       ))
                     ) : (
                       <Empty
-                        title={t("Add your first skill")}
-                        text={t("Choose skills from a source repository.")}
+                        title={
+                          query
+                            ? t("No skills found")
+                            : t("Add your first skill")
+                        }
+                        text={
+                          query
+                            ? t("Try a different name or source.")
+                            : t("Choose skills from a source repository.")
+                        }
                       />
                     )}
                   </div>
@@ -862,7 +888,23 @@ export default function App() {
                   {skill ? (
                     <>
                       <div className="detail-heading">
-                        <span className="badge">{t("SKILL")}</span>
+                        <div className="skill-heading-top">
+                          <span className="badge">{t("SKILL")}</span>
+                          <div className="usage-counts">
+                            <span className="usage-count preset-tone">
+                              <Layers size={15} />
+                              {t("Used in {count} presets", {
+                                count: skillUsage.presets.length,
+                              })}
+                            </span>
+                            <span className="usage-count project-tone">
+                              <FolderGit2 size={15} />
+                              {t("Used by {count} projects", {
+                                count: skillUsage.targets.length,
+                              })}
+                            </span>
+                          </div>
+                        </div>
                         {skillLoading && (
                           <span
                             className="skill-loading"
@@ -885,37 +927,133 @@ export default function App() {
                           </span>
                         </div>
                       </div>
-                      {!skillLoading && (
-                        <>
-                          {markdown !== null ? (
-                            <Markdown text={markdown} />
-                          ) : (
-                            <p className="error-text" role="alert">
-                              {t("Could not read the skill content.")}
-                              {skillReadError && (
-                                <>
-                                  {" "}
-                                  {translateBackendMessage(t, skillReadError)}
-                                </>
+                      <div className="skill-content">
+                        <div className="skill-document">
+                          <div className="document-label">
+                            <FileText size={16} />
+                            {t("Documentation")}
+                            <span>SKILL.md</span>
+                          </div>
+                          {!skillLoading && (
+                            <>
+                              {markdown !== null ? (
+                                <Markdown text={markdown} />
+                              ) : (
+                                <p className="error-text" role="alert">
+                                  {t("Could not read the skill content.")}
+                                  {skillReadError && (
+                                    <>
+                                      {" "}
+                                      {translateBackendMessage(
+                                        t,
+                                        skillReadError,
+                                      )}
+                                    </>
+                                  )}
+                                </p>
                               )}
-                            </p>
+                              <button
+                                className="secondary change-source"
+                                disabled={busy}
+                                onClick={() => {
+                                  setSource(
+                                    skill.source_ref
+                                      ? `${skill.source.replace(/\.git$/, "")}/tree/${encodeURIComponent(skill.source_ref)}`
+                                      : skill.source,
+                                  );
+                                  setModal("relocate");
+                                }}
+                              >
+                                {t("Change source location")}
+                              </button>
+                            </>
                           )}
-                          <button
-                            className="secondary"
-                            disabled={busy}
-                            onClick={() => {
-                              setSource(
-                                skill.source_ref
-                                  ? `${skill.source.replace(/\.git$/, "")}/tree/${encodeURIComponent(skill.source_ref)}`
-                                  : skill.source,
-                              );
-                              setModal("relocate");
-                            }}
-                          >
-                            {t("Change source location")}
-                          </button>
-                        </>
-                      )}
+                        </div>
+                        <aside
+                          className="skill-context"
+                          aria-label={t("Skill usage")}
+                        >
+                          <section className="usage-card preset-tone">
+                            <h3>
+                              <Layers size={16} />
+                              {t("Presets")}
+                              <span>{skillUsage.presets.length}</span>
+                            </h3>
+                            <div className="usage-items">
+                              {skillUsage.presets.length ? (
+                                skillUsage.presets.map((item) => (
+                                  <button
+                                    className="usage-link"
+                                    key={item.id}
+                                    disabled={busy}
+                                    onClick={() => openPreset(item)}
+                                  >
+                                    <Layers size={16} />
+                                    <span>{item.name}</span>
+                                    <ChevronRight size={14} />
+                                  </button>
+                                ))
+                              ) : (
+                                <p className="usage-empty">
+                                  {t("No presets use this skill yet.")}
+                                </p>
+                              )}
+                            </div>
+                          </section>
+                          <section className="usage-card project-tone">
+                            <h3>
+                              <FolderGit2 size={16} />
+                              {t("Target projects")}
+                              <span>{skillUsage.targets.length}</span>
+                            </h3>
+                            <div className="usage-items">
+                              {skillUsage.targets.length ? (
+                                skillUsage.targets.map((view) => (
+                                  <button
+                                    className="usage-link"
+                                    key={view.target.id}
+                                    disabled={busy}
+                                    onClick={() => {
+                                      navigate("targets");
+                                      setSelectedTarget(view.target.id);
+                                    }}
+                                  >
+                                    <FolderGit2 size={16} />
+                                    <span>{view.target.name}</span>
+                                    <ChevronRight size={14} />
+                                  </button>
+                                ))
+                              ) : (
+                                <p className="usage-empty">
+                                  {t("No projects use this skill yet.")}
+                                </p>
+                              )}
+                            </div>
+                          </section>
+                          {skillUsage.agents.length > 0 && (
+                            <section className="usage-card">
+                              <h3>
+                                <Plug size={16} />
+                                {t("Enabled agent adapters")}
+                              </h3>
+                              <div className="adapter-list">
+                                {skillUsage.agents.map((id) => (
+                                  <span className="adapter-chip" key={id}>
+                                    <span className="status-dot connected" />
+                                    {id === "agents"
+                                      ? t("Generic Agents")
+                                      : id === "claude"
+                                        ? "Claude"
+                                        : id === "cursor"
+                                          ? "Cursor"
+                                          : id}
+                                  </span>
+                                ))}
+                              </div>
+                            </section>
+                          )}
+                        </aside>
+                      </div>
                     </>
                   ) : (
                     <Empty
@@ -1068,6 +1206,7 @@ export default function App() {
                         key={view.target.id}
                         disabled={busy}
                         className={`target-row ${selectedTarget === view.target.id ? "selected" : ""}`}
+                        aria-pressed={selectedTarget === view.target.id}
                         onClick={() => setSelectedTarget(view.target.id)}
                       >
                         <div className="row-title">
@@ -1241,12 +1380,14 @@ export default function App() {
                   <div className="segmented">
                     <button
                       className={graphMode === "presets" ? "active" : ""}
+                      aria-pressed={graphMode === "presets"}
                       onClick={() => setGraphMode("presets")}
                     >
                       {t("Shared preset dependencies")}
                     </button>
                     <button
                       className={graphMode === "targets" ? "active" : ""}
+                      aria-pressed={graphMode === "targets"}
                       onClick={() => setGraphMode("targets")}
                     >
                       {t("Local target project dependencies")}
@@ -1309,7 +1450,7 @@ export default function App() {
                     nodesConnectable={false}
                     proOptions={{ hideAttribution: true }}
                   >
-                    <Background gap={24} color="#e5e5de" />
+                    <Background gap={24} color="var(--color-line)" />
                     <Controls showInteractive={false} />
                   </ReactFlow>
                 ) : (
@@ -1376,11 +1517,31 @@ export default function App() {
             )}
           </>
         )}
-        <footer className="app-footer">
-          <span>{t("Configure · Compose · Apply")}</span>
-          <span>{t("Local first, changes visible")}</span>
-        </footer>
       </main>
+      <footer className="workspace-bar">
+        <span className="workspace-label">
+          <Layers size={14} />
+          {t("Workspace")}
+        </span>
+        <span className="workspace-repository" title={state.root ?? undefined}>
+          <FolderGit2 size={14} />
+          <span>
+            {state.root?.split(/[\\/]/).filter(Boolean).at(-1) ??
+              t("Not connected")}
+          </span>
+        </span>
+        <span
+          className="workspace-status"
+          title={translateBackendMessage(t, state.git_status)}
+        >
+          <span className={`status-dot ${state.root ? "connected" : ""}`} />
+          <span>{translateBackendMessage(t, state.git_status)}</span>
+        </span>
+        <span className="workspace-principle">
+          {t("Local first, changes visible")}
+        </span>
+        <span className="workspace-version">v{appVersion}</span>
+      </footer>
 
       {modal && (
         <Modal
@@ -1979,19 +2140,22 @@ function OperationLog({ lines }: { lines: string[] }) {
     end.current?.scrollIntoView?.({ block: "nearest" });
   }, [lines]);
   return (
-    <section className="operation-log" aria-label={t("Activity log")}>
-      <strong>{t("Activity log")}</strong>
-      <p role="status">{translateBackendMessage(t, lines.at(-1) ?? "")}</p>
-      <details>
-        <summary>{t("Show activity details")}</summary>
-        <ol>
-          {lines.map((line, i) => (
-            <li key={i} ref={i === lines.length - 1 ? end : undefined}>
-              {translateBackendMessage(t, line)}
-            </li>
-          ))}
-        </ol>
-      </details>
-    </section>
+    <details className="operation-log" aria-label={t("Activity log")}>
+      <summary>
+        <strong>{t("Activity log")}</strong>
+        <span role="status">
+          {translateBackendMessage(t, lines.at(-1) ?? "")}
+        </span>
+        <span className="sr-only">{t("Show activity details")}</span>
+        <ChevronDown size={14} />
+      </summary>
+      <ol>
+        {lines.map((line, i) => (
+          <li key={i} ref={i === lines.length - 1 ? end : undefined}>
+            {translateBackendMessage(t, line)}
+          </li>
+        ))}
+      </ol>
+    </details>
   );
 }

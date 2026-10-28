@@ -1,0 +1,692 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#f4f2eb" />
+    <title>Signal Block — aicfg design system</title>
+    <link rel="icon" type="image/svg+xml" href="./assets/aicfg.svg" />
+    <link rel="stylesheet" href="./src/tokens.css" />
+    <link rel="stylesheet" href="./src/styles.css" />
+    <style>
+      body {
+        padding: 32px;
+      }
+      .ds {
+        max-width: 1320px;
+        margin: auto;
+      }
+      .ds-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding-bottom: 24px;
+        border-bottom: var(--stroke);
+      }
+      .ds-brand {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        font-size: 32px;
+        font-weight: 800;
+        letter-spacing: -1.5px;
+      }
+      .ds-brand img {
+        width: 48px;
+        height: 48px;
+      }
+      .ds-meta,
+      .ds-label {
+        font: 11px/1.6 var(--font-mono);
+        text-transform: uppercase;
+        letter-spacing: 1px;
+      }
+      .ds-hero {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        border-bottom: var(--stroke);
+      }
+      .ds-intro {
+        padding: 48px 32px 48px 0;
+      }
+      .ds-intro h1 {
+        margin: 16px 0;
+        font-size: clamp(48px, 6vw, 80px);
+        letter-spacing: -4px;
+      }
+      .ds-intro p {
+        max-width: 440px;
+        font-size: 16px;
+        line-height: 1.7;
+        color: var(--muted);
+      }
+      .ds-identity {
+        display: grid;
+        place-items: center;
+        border-left: var(--stroke);
+        background: var(--color-signal);
+      }
+      .ds-identity .ds-brand {
+        gap: 20px;
+        font-size: 76px;
+        letter-spacing: -5px;
+      }
+      .ds-identity img {
+        width: 118px;
+        height: 118px;
+      }
+      .ds-section {
+        padding: 32px 0;
+        border-bottom: var(--stroke);
+      }
+      .ds-title {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        margin-bottom: 24px;
+      }
+      .ds-title h2 {
+        margin: 0;
+        font-size: 24px;
+        font-weight: 750;
+        letter-spacing: -0.7px;
+      }
+      .ds-title .page-index {
+        width: 32px;
+        height: 32px;
+        font-size: 14px;
+      }
+      .ds-title p {
+        margin: 0 0 0 auto;
+        max-width: 500px;
+        font-size: 12px;
+        color: var(--muted);
+      }
+      .ds-swatches {
+        display: grid;
+        grid-template-columns: repeat(6, 1fr);
+        gap: 16px;
+      }
+      .ds-swatch {
+        min-width: 0;
+      }
+      .ds-swatch > div {
+        height: 100px;
+        border: var(--stroke);
+        background: var(--swatch);
+      }
+      .ds-swatch strong {
+        display: block;
+        margin-top: 10px;
+        font-size: 12px;
+      }
+      .ds-swatch code {
+        padding: 0;
+        font-size: 11px;
+        color: var(--muted);
+      }
+      .ds-two {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 24px;
+      }
+      .ds-sample {
+        min-width: 0;
+        padding: 24px;
+        border: var(--stroke);
+        background: var(--color-surface);
+      }
+      .ds-sample > .ds-label {
+        display: block;
+        margin-bottom: 20px;
+        color: var(--muted);
+      }
+      .ds-display {
+        margin: 0 0 16px;
+        font-size: 48px;
+        line-height: 1.05;
+        font-weight: 800;
+        letter-spacing: -2px;
+      }
+      .ds-sample h3 {
+        margin: 0 0 12px;
+        font-size: 20px;
+      }
+      .ds-sample p {
+        font-size: 13px;
+      }
+      .ds-type-meta {
+        font-family: var(--font-mono);
+        font-size: 11px !important;
+        color: var(--muted);
+      }
+      .ds-stack {
+        display: grid;
+        gap: 16px;
+      }
+      .ds-actions {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        flex-wrap: wrap;
+      }
+      .ds-measures {
+        display: flex;
+        align-items: flex-end;
+        gap: 12px;
+        min-height: 80px;
+        margin-top: 20px;
+      }
+      .ds-measure {
+        width: var(--size);
+        height: var(--size);
+        background: var(--color-signal);
+        border: var(--stroke);
+        position: relative;
+      }
+      .ds-measure::after {
+        content: attr(data-size);
+        position: absolute;
+        top: calc(100% + 4px);
+        left: 0;
+        font: 10px var(--font-mono);
+      }
+      .ds-geometry {
+        display: flex;
+        gap: 24px;
+        align-items: center;
+        margin-top: 40px;
+        padding-top: 24px;
+        border-top: var(--stroke-subtle);
+        font-size: 12px;
+      }
+      .ds-geometry > div {
+        width: 64px;
+        height: 64px;
+        border: var(--stroke);
+        border-radius: var(--radius);
+        display: grid;
+        place-items: center;
+        background: var(--color-canvas);
+        font: 12px var(--font-mono);
+      }
+      .ds-sample .form {
+        padding: 0;
+      }
+      .ds-sample .check-row {
+        margin: 0;
+      }
+      .ds-sample .skill-row {
+        padding-right: 12px;
+      }
+      .ds-sample .skill-row .row-index {
+        width: 30px;
+      }
+      .ds-row-title {
+        font-size: 14px;
+        font-weight: 700;
+      }
+      .ds-list {
+        border: var(--stroke);
+        margin-top: 16px;
+      }
+      .ds-list .skill-row:last-child {
+        border-bottom: 0;
+      }
+      .ds-cards {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 16px;
+        margin-top: 24px;
+      }
+      .ds-state-label {
+        display: block;
+        margin-bottom: 8px;
+        font: 10px var(--font-mono);
+        color: var(--muted);
+        text-transform: uppercase;
+        letter-spacing: 1px;
+      }
+      .ds-logo-sizes {
+        display: flex;
+        align-items: center;
+        gap: 32px;
+      }
+      .ds-logo-sizes img {
+        display: block;
+      }
+      .ds-logo-dark {
+        background: var(--color-ink);
+        color: var(--color-surface);
+      }
+      .ds-logo-dark img {
+        filter: invert(1);
+      }
+      .ds-logo-dark > .ds-label {
+        color: var(--color-line);
+      }
+      .ds-cards .usage-link > span[aria-hidden] {
+        flex: 0;
+      }
+      .ds .operation-log > summary > span[aria-hidden] {
+        margin-left: auto;
+      }
+      .ds-guidance {
+        color: var(--muted);
+        font-size: 12px;
+        line-height: 1.8;
+        margin: 20px 0 0;
+      }
+      .ds-footer {
+        display: flex;
+        justify-content: space-between;
+        padding: 24px 0;
+        font: 11px var(--font-mono);
+        color: var(--muted);
+      }
+      .ds-map {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        margin-top: 20px;
+      }
+      .ds-node {
+        flex: 1;
+        min-width: 0;
+        padding: 16px;
+        border: var(--stroke);
+        border-radius: var(--radius);
+        font-size: 12px;
+        background: var(--color-surface);
+      }
+      .ds-node.selected {
+        background: var(--color-signal);
+        border-width: 2px;
+      }
+      .ds-node span {
+        display: block;
+        margin-top: 6px;
+        font: 10px var(--font-mono);
+        color: var(--muted);
+      }
+      .ds-outline {
+        outline: var(--focus-ring);
+        outline-offset: 3px;
+      }
+      @media (max-width: 900px) {
+        body {
+          padding: 20px;
+        }
+        .ds-hero,
+        .ds-two {
+          grid-template-columns: 1fr;
+        }
+        .ds-identity {
+          border-left: 0;
+          border-top: var(--stroke);
+          padding: 32px;
+        }
+        .ds-swatches {
+          grid-template-columns: repeat(3, 1fr);
+        }
+        .ds-title p {
+          display: none;
+        }
+        .ds-cards {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="ds">
+      <header class="ds-header">
+        <div class="ds-brand">
+          <img src="./assets/aicfg.svg" alt="aicfg modular symbol" />aicfg
+        </div>
+        <span class="ds-meta">Design system / 05<br />Signal Block / v1.0</span>
+      </header>
+      <section class="ds-hero">
+        <div class="ds-intro">
+          <span class="ds-label">Local tools. Clear structure.</span>
+          <h1>Signal Block.</h1>
+          <p>
+            A graphic working system for agent skills, rules, and presets. Warm
+            surfaces. Precise geometry. Color with a purpose.
+          </p>
+          <span class="ds-label">Structure / Compose / Apply</span>
+        </div>
+        <div class="ds-identity">
+          <div class="ds-brand">
+            <img src="./assets/aicfg-mark.svg" alt="" />aicfg
+          </div>
+        </div>
+      </section>
+      <section class="ds-section">
+        <div class="ds-title">
+          <span class="page-index">01</span>
+          <h2>Color with intent</h2>
+          <p>Yellow selects. Vermilion connects. Ink provides structure.</p>
+        </div>
+        <div class="ds-swatches">
+          <div class="ds-swatch" style="--swatch: var(--color-canvas)">
+            <div></div>
+            <strong>Warm white</strong><code>#F4F2EB / canvas</code>
+          </div>
+          <div class="ds-swatch" style="--swatch: var(--color-ink)">
+            <div></div>
+            <strong>Ink black</strong><code>#141414 / primary</code>
+          </div>
+          <div class="ds-swatch" style="--swatch: var(--color-signal)">
+            <div></div>
+            <strong>Signal yellow</strong><code>#F4D44C / selection</code>
+          </div>
+          <div class="ds-swatch" style="--swatch: var(--color-orange)">
+            <div></div>
+            <strong>Vermilion</strong><code>#E65936 / context</code>
+          </div>
+          <div class="ds-swatch" style="--swatch: var(--color-success)">
+            <div></div>
+            <strong>Success</strong><code>#24683D / connected</code>
+          </div>
+          <div class="ds-swatch" style="--swatch: var(--color-danger)">
+            <div></div>
+            <strong>Danger</strong><code>#A52B20 / destructive</code>
+          </div>
+        </div>
+      </section>
+      <section class="ds-section">
+        <div class="ds-title">
+          <span class="page-index">02</span>
+          <h2>Type &amp; geometry</h2>
+          <p>Local sans serif for work. Monospace for identifiers.</p>
+        </div>
+        <div class="ds-two">
+          <div class="ds-sample">
+            <span class="ds-label">Typography / sans + mono</span>
+            <div class="ds-display">Tools for<br />clear thinking.</div>
+            <h3>Reusable capabilities</h3>
+            <p>
+              Collect skills, compose presets, and preview changes before
+              applying them to your repositories.
+            </p>
+            <p class="ds-type-meta">github.com/example/skills · 49dd158</p>
+            <span class="badge">SKILL</span>
+          </div>
+          <div class="ds-sample">
+            <span class="ds-label">4px rhythm / 2px corners / 1px rules</span>
+            <div class="ds-measures">
+              <div class="ds-measure" style="--size: 4px" data-size="4"></div>
+              <div class="ds-measure" style="--size: 8px" data-size="8"></div>
+              <div class="ds-measure" style="--size: 12px" data-size="12"></div>
+              <div class="ds-measure" style="--size: 16px" data-size="16"></div>
+              <div class="ds-measure" style="--size: 24px" data-size="24"></div>
+              <div class="ds-measure" style="--size: 32px" data-size="32"></div>
+              <div class="ds-measure" style="--size: 48px" data-size="48"></div>
+            </div>
+            <div class="ds-geometry">
+              <div>2px</div>
+              <span
+                >Flat panels. Hard rules.<br />Offset shadows reserved for
+                actions and dialogs.</span
+              >
+            </div>
+            <p class="ds-guidance">
+              Page padding 24px · Collection 280px · Navigation 76px · Status
+              bar 38px<br />Titles 28–48px · Body 13–14px · Controls 12px ·
+              Metadata 10–11px
+            </p>
+          </div>
+        </div>
+      </section>
+      <section class="ds-section">
+        <div class="ds-title">
+          <span class="page-index">03</span>
+          <h2>Actions &amp; fields</h2>
+          <p>
+            Visible states and native controls. Keyboard focus stays explicit.
+          </p>
+        </div>
+        <div class="ds-two">
+          <div class="ds-sample ds-stack">
+            <span class="ds-label">Button hierarchy</span>
+            <div>
+              <span class="ds-state-label">Default / hover to inspect</span>
+              <div class="ds-actions">
+                <button class="primary">＋ Add skill</button
+                ><button class="secondary">Check for updates</button
+                ><button class="text-button">View source ↗</button>
+              </div>
+            </div>
+            <div>
+              <span class="ds-state-label"
+                >Keyboard focus / disabled / destructive</span
+              >
+              <div class="ds-actions">
+                <button class="secondary ds-outline">Focused</button
+                ><button class="primary" disabled>Saving…</button
+                ><button class="primary destructive">Delete skill</button>
+              </div>
+            </div>
+            <div>
+              <span class="ds-state-label">Status carries a label</span>
+              <div class="ds-actions">
+                <span class="badge green">Synced</span
+                ><span class="badge yellow">Needs syncing</span
+                ><span class="badge">Skill</span
+                ><span class="error-text">Source unavailable</span>
+              </div>
+            </div>
+          </div>
+          <div class="ds-sample">
+            <span class="ds-label">Editable inputs / selection</span>
+            <div class="form">
+              <label>Preset name<input value="fullstack" /></label
+              ><label
+                >Search skills<input
+                  type="search"
+                  placeholder="Search skills and sources…"
+              /></label>
+              <label>
+                Language
+                <select>
+                  <option value="system">Follow system language</option>
+                  <option value="en">English</option>
+                  <option value="zh">简体中文</option>
+                  <option value="ja">日本語</option>
+                </select>
+              </label>
+              <fieldset class="selection">
+                <legend>Enabled agent adapters</legend>
+                <label class="check-row"
+                  ><input type="checkbox" checked /><span>Claude</span></label
+                ><label class="check-row"
+                  ><input type="checkbox" checked /><span>Cursor</span></label
+                ><label class="check-row"
+                  ><input type="checkbox" /><span>Generic Agents</span></label
+                >
+              </fieldset>
+            </div>
+          </div>
+        </div>
+      </section>
+      <section class="ds-section">
+        <div class="ds-title">
+          <span class="page-index">04</span>
+          <h2>Collections &amp; relationships</h2>
+          <p>Selection is yellow. Real usage stays adjacent to the document.</p>
+        </div>
+        <div class="ds-two">
+          <div class="ds-sample">
+            <span class="ds-label">Numbered collection / selected state</span>
+            <div class="ds-list">
+              <div class="skill-row selected">
+                <button class="row-main" aria-pressed="true">
+                  <span class="row-index">01</span>
+                  <div class="row-content">
+                    <span class="ds-row-title">ask-matt</span>
+                    <p>Find the right skill for the work ahead.</p>
+                    <small>mattpocock/skills</small>
+                  </div>
+                </button>
+              </div>
+              <div class="skill-row">
+                <button class="row-main" aria-pressed="false">
+                  <span class="row-index">02</span>
+                  <div class="row-content">
+                    <span class="ds-row-title">code-review</span>
+                    <p>Review changes with clear standards.</p>
+                    <small>mattpocock/skills</small>
+                  </div>
+                </button>
+              </div>
+            </div>
+          </div>
+          <div class="ds-sample">
+            <span class="ds-label">Segmented control / graph focus</span>
+            <div class="segmented">
+              <button class="active" aria-pressed="true">Shared presets</button
+              ><button aria-pressed="false">Local projects</button>
+            </div>
+            <div class="ds-map">
+              <div class="ds-node selected">
+                fullstack<span>PRESET / FOCUSED</span>
+              </div>
+              <span>→</span>
+              <div class="ds-node">ask-matt<span>SKILL / RELATED</span></div>
+            </div>
+            <p class="ds-guidance">
+              Enter / Space to focus · Escape to clear<br />Independent panes
+              scroll while workspace context stays visible.
+            </p>
+          </div>
+        </div>
+        <div class="ds-cards">
+          <section class="usage-card preset-tone">
+            <h3>Used in preset<span>01</span></h3>
+            <button class="usage-link">
+              <span>fullstack</span><span aria-hidden="true">↗</span>
+            </button>
+          </section>
+          <section class="usage-card project-tone">
+            <h3>Used by project<span>01</span></h3>
+            <button class="usage-link">
+              <span>pt-tools</span><span aria-hidden="true">↗</span>
+            </button>
+          </section>
+          <section class="usage-card">
+            <h3>Enabled adapters</h3>
+            <div class="adapter-list">
+              <span class="adapter-chip"
+                ><span class="status-dot connected"></span>Claude</span
+              ><span class="adapter-chip"
+                ><span class="status-dot connected"></span>Cursor</span
+              >
+            </div>
+          </section>
+        </div>
+      </section>
+      <section class="ds-section">
+        <div class="ds-title">
+          <span class="page-index">05</span>
+          <h2>Feedback &amp; review</h2>
+          <p>
+            Progress stays compact. Applying changes remains an explicit action.
+          </p>
+        </div>
+        <details class="operation-log">
+          <summary>
+            <strong>Activity log</strong
+            ><span role="status"
+              >Preview ready. Target files have not been changed.</span
+            ><span aria-hidden="true">⌄</span>
+          </summary>
+          <ol>
+            <li>Resolving saved presets and skill versions</li>
+            <li>Generating rules and comparing target files</li>
+            <li>Preview ready. Target files have not been changed.</li>
+          </ol>
+        </details>
+        <div class="ds-two">
+          <div class="ds-sample">
+            <span class="ds-label">Error with a recovery path</span>
+            <div class="banner error" role="alert">
+              <span
+                >Could not read the skill content. Check the source and try
+                again.</span
+              >
+            </div>
+            <button class="secondary">Retry</button>
+            <p class="ds-guidance">
+              Use danger ink for errors. Preserve the user's draft and keep the
+              next action available.
+            </p>
+          </div>
+          <div class="ds-sample">
+            <span class="ds-label">Conflict requires a decision</span>
+            <div class="conflict-toolbar">
+              <strong>2 conflicts need a choice</strong
+              ><span
+                >Review the current and preset content before applying.</span
+              >
+            </div>
+            <div class="ds-actions">
+              <button class="secondary">Cancel</button
+              ><button class="primary" disabled>Apply confirmed changes</button>
+            </div>
+          </div>
+        </div>
+      </section>
+      <section class="ds-section">
+        <div class="ds-title">
+          <span class="page-index">06</span>
+          <h2>Identity in use</h2>
+          <p>One geometric master. Scalable across the application.</p>
+        </div>
+        <div class="ds-two">
+          <div class="ds-sample">
+            <span class="ds-label">App icon / minimum 24px</span>
+            <div class="ds-logo-sizes">
+              <img
+                src="./assets/aicfg.svg"
+                width="96"
+                height="96"
+                alt="96 pixel app icon"
+              /><img
+                src="./assets/aicfg.svg"
+                width="44"
+                height="44"
+                alt="44 pixel navigation icon"
+              /><img
+                src="./assets/aicfg.svg"
+                width="24"
+                height="24"
+                alt="24 pixel minimum icon"
+              />
+            </div>
+            <p class="ds-guidance">
+              64-unit grid · 8-unit clear space · 4-unit module gaps<br />Preserve
+              the silhouette. Keep the wordmark lowercase.
+            </p>
+          </div>
+          <div class="ds-sample ds-logo-dark">
+            <span class="ds-label">Monochrome / reverse</span>
+            <div class="ds-brand">
+              <img
+                src="./assets/aicfg-mark.svg"
+                width="64"
+                height="64"
+                alt="White aicfg symbol"
+              />aicfg
+            </div>
+            <p>Precise, legible, and independent of decorative effects.</p>
+          </div>
+        </div>
+      </section>
+      <footer class="ds-footer">
+        <span>aicfg / Signal Block / Design system v1.0</span
+        ><span>Local first. Changes visible.</span>
+      </footer>
+    </div>
+  </body>
+</html>

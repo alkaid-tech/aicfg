@@ -1,0 +1,53 @@
+/* Signal Block: shared foundations for the app and the design-system reference. */
+:root {
+  --color-canvas: #f4f2eb;
+  --color-surface: #fffdf8;
+  --color-surface-raised: #ffffff;
+  --color-ink: #141414;
+  --color-muted: #64635c;
+  --color-line: #cfcdc4;
+  --color-signal: #f4d44c;
+  --color-signal-hover: #ffe374;
+  --color-signal-soft: #fcf3c9;
+  --color-orange: #e65936;
+  --color-orange-soft: #fbe6df;
+  --color-success: #24683d;
+  --color-success-soft: #e6efdf;
+  --color-danger: #a52b20;
+  --color-danger-soft: #fae7e1;
+  --color-backdrop: #14141466;
+
+  --font-sans: "Helvetica Neue", Helvetica, Arial, -apple-system, sans-serif;
+  --font-mono: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+  --text-xs: 11px;
+  --text-sm: 12px;
+  --text-base: 14px;
+  --text-lg: 16px;
+  --text-xl: 20px;
+  --text-title: clamp(28px, 3vw, 40px);
+  --text-display: clamp(32px, 3.5vw, 48px);
+
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+
+  --radius: 2px;
+  --border: var(--color-line);
+  --muted: var(--color-muted);
+  --accent: var(--color-ink);
+  --stroke: 1px solid var(--color-ink);
+  --stroke-subtle: 1px solid var(--color-line);
+  --shadow-action: 2px 2px 0 var(--color-ink);
+  --shadow-dialog: 8px 8px 0 #14141426;
+  --focus-ring: 2px solid var(--color-ink);
+  --motion-fast: 120ms;
+  --topbar-height: 76px;
+  --statusbar-height: 38px;
+  --collection-width: 280px;
+}
