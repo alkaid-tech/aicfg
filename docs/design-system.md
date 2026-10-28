@@ -92,6 +92,8 @@ Library collection and document panes scroll independently. Project lists and pr
 | Dialog             | Warm surface, ink outline, offset shadow | Sticky title and close action                       | Native modal focus trap, Escape and focus restoration       |
 | Dependency node    | Warm or semantic surface, square corners | Focused node is yellow with a 2px ink border        | Unrelated nodes fade; keyboard Enter, Space and Escape work |
 
+Select fields use a 38px height, 2px corners, an ink border, and a custom chevron. Reset native control appearance so macOS and WebKit respect the shared geometry. Hover uses pale yellow; keyboard focus uses the standard ink outline. Keep native option selection and keyboard behavior, and restore the system appearance in forced-colors mode.
+
 Use one primary action per region. Destructive operations retain the application's confirmation dialogs. Keep preview and application separate: reviewing changes must not apply files. Activity logs remain collapsed into a compact summary, with full details available on demand.
 
 ## Usage information
