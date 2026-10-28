@@ -1,25 +1,119 @@
-# aicfg
+<p align="center">
+  <img src="desktop/assets/aicfg.svg" alt="aicfg app icon" width="88" height="88" />
+</p>
 
-A local-first macOS desktop app for managing agent skills, rules, and reusable presets across your repositories.
+<h1 align="center">aicfg</h1>
 
-Keep shared configuration in your own Git repository. Collect skills in a Library, combine them into presets, then preview and confirm changes before applying them to a target project.
+<p align="center">
+  <strong>Your agent setup, organized.</strong><br />
+  Collect skills, compose reusable presets, and review changes across your repositories.
+</p>
 
-## What you can do
+<p align="center">
+  <a href="https://github.com/alkaid-tech/aicfg/releases/latest">Download for macOS</a>
+  · <a href="docs/usage.md">User guide</a>
+  · <a href="docs/development.md">Development</a>
+  · <a href="CONTRIBUTING.md">Contributing</a>
+</p>
 
-- Discover skills from GitHub or local Git repositories and adopt specific source versions.
-- Compose presets from skills, Markdown rules, and other presets, with cycle detection.
-- Search your Library and explore shared preset and local target project dependency graphs.
-- Choose agent adapters and exclude skills separately for each target project.
-- Preview file changes, resolve version and ownership conflicts, and preserve handwritten instructions.
-- Track installed versions, local edits, pending updates, and repair states.
-- Save, commit, and push shared configuration using your existing Git identity and authentication.
-- Use the interface in English, Simplified Chinese, or Japanese, or follow your system language from Settings.
+<p align="center">Local-first · Git-owned configuration · Apple Silicon &amp; Intel</p>
 
-The current implementation uses Rust, Tauri 2, React, and TypeScript. macOS is the supported desktop platform for this first release. See the [roadmap](docs/roadmap.md) for remaining work and current limitations.
+<p align="center">
+  <img src="docs/images/skill-library.jpg" alt="aicfg Skill Library showing a selected skill, its documentation, and the presets and projects that use it" width="1280" />
+</p>
 
-## Run locally
+<p align="center"><sub>The Skill Library and usage inspector. Screenshots show the application with example configuration and content.</sub></p>
 
-You need macOS, Xcode Command Line Tools, Rust stable, Node.js 22.12 or newer with npm/npx, and Git. The application discovers your shell's `PATH` when launched from Finder; its first skill installation may require network access.
+## Why aicfg?
+
+Keep your agent capabilities in one versioned collection. Reuse them across projects, choose the setup each repository needs, and review the resulting files before applying updates.
+
+- **A versioned skill library.** Discover skills from GitHub or local Git repositories, read their documentation, and adopt specific source versions.
+- **Composable presets.** Combine skills, scoped Markdown rules, and other presets. Included presets remain linked, and cyclic references are rejected.
+- **A setup for each project.** Select presets and agent adapters independently for every target repository, with per-project skill exclusions.
+- **Changes you can review.** Compare current and desired file contents, resolve version and ownership conflicts, then explicitly confirm application.
+- **Visible relationships.** See which presets and projects use a skill, navigate to their editors, and focus dependencies in an interactive graph.
+- **Configuration you own.** Store shared definitions in your own Git repository, using your existing Git identity and authentication.
+
+The interface supports **English, Simplified Chinese, and Japanese**, including an option to follow your system language.
+
+## Install
+
+1. Download the **macOS Universal** DMG or app ZIP from the [latest release](https://github.com/alkaid-tech/aicfg/releases/latest).
+2. Open the download and move **aicfg.app** to **Applications**.
+3. Make sure **Git** and **Node.js 22.12 or newer**, including npm/npx, are installed. aicfg discovers your shell's `PATH` when launched from Finder.
+
+Downloads support both Apple Silicon and Intel. Builds marked `_unsigned` are previews without Apple Developer ID signing or notarization; check the release notes for macOS first-launch instructions. See the [release guide](docs/releases.md) for distribution details.
+
+## From skills to working projects
+
+| Step           | What you do                                                                                                                                                    |
+| -------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **1. Connect** | Open, initialize, or clone a configuration repository in its own directory.                                                                                    |
+| **2. Collect** | Add a GitHub URL, `owner/repo`, a GitHub tree URL, or a local Git repository. Choose individual skills to add to the Library.                                  |
+| **3. Compose** | Create presets, add skills and Markdown rules, and include other presets when useful.                                                                          |
+| **4. Apply**   | Add a target repository, choose its presets and adapters, then select **Save and preview changes**. Review the files and choose **Confirm and apply changes**. |
+
+Adding a skill to the Library does not install it into a project. Adopting an update and applying it to each target are separate steps.
+
+Saving shared configuration creates a local Git commit and attempts to push it. aicfg never stages or commits changes in your target repositories. Handwritten instructions outside aicfg's managed regions are preserved.
+
+For source discovery, update handling, conflict decisions, and recovery, see the [user guide](docs/usage.md).
+
+## A closer look
+
+<details>
+<summary><strong>Compose reusable presets</strong></summary>
+
+Search the Library, add skills, and choose whether each one follows its adopted version or a pinned source commit. Add rules and include other presets on the same detail page.
+
+![Preset editor with added skills and a searchable Library](docs/images/preset-editor.jpg)
+
+</details>
+
+<details>
+<summary><strong>Preview file changes before applying</strong></summary>
+
+Review the current and desired contents of every changed file. Resolve conflicts before confirming application, and keep existing handwritten content outside managed regions.
+
+![File preview showing the list of changes, current content, desired content, and explicit confirmation](docs/images/change-preview.jpg)
+
+</details>
+
+<details>
+<summary><strong>Explore dependencies</strong></summary>
+
+Switch between shared presets and local target projects. Click a node to focus its dependencies and fade unrelated branches; clear focus to return to the full graph.
+
+![Dependency graph with a focused preset and its related skills](docs/images/dependencies.jpg)
+
+</details>
+
+## Agent adapters
+
+Enable adapters separately for each target project.
+
+| Adapter            | Output                                                                                        |
+| ------------------ | --------------------------------------------------------------------------------------------- |
+| **Generic Agents** | Skills and rules under `.agents/`, plus managed instruction regions in `AGENTS.md`.           |
+| **Claude**         | Relative `.claude/skills` and `.claude/rules` links, with a managed reference in `CLAUDE.md`. |
+| **Cursor**         | Scoped `.cursor/rules/*.mdc` rule files.                                                      |
+
+See [adapter output](docs/configuration.md#adapter-output) for the generated layout and ownership rules.
+
+## Where your configuration lives
+
+| Data                                                                   | Location                                                              |
+| ---------------------------------------------------------------------- | --------------------------------------------------------------------- |
+| Library, presets, and rule definitions                                 | Your configuration Git repository.                                    |
+| Local project connections, state, and skill snapshots                  | The configuration repository's Git-ignored `.aicfg-local/` directory. |
+| A target's selected presets, adapters, exclusions, and version choices | `.aicfg.toml` in that target repository.                              |
+
+The configuration repository and target repositories are separate. Sharing configuration does not share this computer's local project connections. See the [configuration reference](docs/configuration.md) for file formats and storage details.
+
+## Build from source
+
+For development, you also need **Rust stable** and **Xcode Command Line Tools** on macOS.
 
 ```sh
 git clone https://github.com/alkaid-tech/aicfg.git
@@ -28,47 +122,33 @@ npm ci
 npm run desktop
 ```
 
-`npm run dev` starts only the browser interface. Connecting repositories and applying changes require the Tauri desktop runtime.
+`npm run desktop` starts the native Tauri app with frontend hot reloading. `npm run dev` starts the browser interface alone; repository operations require the desktop runtime.
 
-To build a local application bundle:
+From `desktop/`, build a local application bundle with:
 
 ```sh
-cd desktop
 npm run bundle
 ```
 
-The macOS bundle is generated at `desktop/src-tauri/target/release/bundle/macos/aicfg.app`. The [release workflow](docs/releases.md) automatically proposes versions and publishes macOS Universal downloads after the release PR is merged. With all Apple signing credentials configured, downloads are Developer ID signed and notarized. Until then, releases are explicitly labeled unsigned previews and may be blocked by Gatekeeper. Local bundles require separate signing setup for distribution.
+The app is generated at `desktop/src-tauri/target/release/bundle/macos/aicfg.app`. For prerequisites, tests, linting, and packaging, follow the [development guide](docs/development.md).
 
-## First use
-
-1. Connect, initialize, or clone a configuration repository in its own directory.
-2. Add skills to the Library from a GitHub URL, `owner/repo`, or a local Git repository.
-3. Create a preset, then add skills, rules, and any included presets on its detail page.
-4. Add a target project, select presets and adapters, then click **Save and preview changes**.
-5. Review the file changes, resolve any conflicts, then click **Confirm and apply changes**.
-
-Preview reads the saved target configuration and compares the desired skills, rules, and adapters with existing files. It reuses prepared skill caches when possible; uncached skills run through the installer in a temporary directory under the configuration repository's ignored local data. Source fetching and first-time preparation can take time. Preview does not create a Git worktree or apply files to the target project. The activity log shows preparation and application stages, including the current skill or file. Empty selections and previews without file changes are explained in the interface.
-
-The installed application version appears in the sidebar and Settings.
-
-Shared configuration is committed and pushed when it is saved. Changes to target project repositories are never staged or committed by aicfg.
+Built with **Rust, Tauri 2, React, and TypeScript**. The desktop app currently supports macOS; see the [roadmap and limitations](docs/roadmap.md) for platform plans and current boundaries.
 
 ## Documentation
 
-Start with the [documentation index](docs/README.md), or jump to:
-
-- [Development setup](docs/development.md)
-- [Release workflow and version policy](docs/releases.md)
-- [User guide](docs/usage.md)
-- [Configuration reference](docs/configuration.md)
-- [Architecture](docs/architecture.md)
-- [Roadmap and limitations](docs/roadmap.md)
-- [Glossary](GLOSSARY.md)
+- [User guide](docs/usage.md) — connect repositories, collect skills, compose presets, and apply changes.
+- [Configuration reference](docs/configuration.md) — shared definitions, local state, target settings, and adapter output.
+- [Development setup](docs/development.md) — run, test, and build the application.
+- [Design system](docs/design-system.md) — Signal Block branding, tokens, components, and interaction states.
+- [Architecture](docs/architecture.md) — modules and the preview-to-application workflow.
+- [Releases](docs/releases.md) — version policy, downloads, signing, and recovery.
+- [Roadmap](docs/roadmap.md) — available behavior, limitations, and planned work.
+- [Glossary](GLOSSARY.md) — project terminology.
 
 ## Contributing
 
-Bug reports, documentation improvements, and focused pull requests are welcome. Read [CONTRIBUTING.md](CONTRIBUTING.md) for setup, verification commands, and contribution guidelines.
+Bug reports, documentation improvements, and focused pull requests are welcome. Read [CONTRIBUTING.md](CONTRIBUTING.md) for project conventions and verification requirements.
 
 ## License
 
-Licensed under the [Apache License 2.0](LICENSE).
+[Apache License 2.0](LICENSE).
