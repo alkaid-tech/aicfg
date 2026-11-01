@@ -87,6 +87,7 @@ export interface Response {
   preview: Preview | null;
   markdown: string | null;
   updates: Skill[] | null;
+  update_failures?: { skill_id: string; reason: string }[];
 }
 export interface Request {
   action: string;

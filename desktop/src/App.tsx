@@ -284,6 +284,9 @@ export default function App() {
     )
       ? (decisions[conflicts[0].path] ?? "")
       : "";
+  const [updateFailures, setUpdateFailures] = useState<
+    { skill_id: string; reason: string }[]
+  >([]);
   const [updates, setUpdates] = useState<Skill[]>([]),
     [updateIds, setUpdateIds] = useState<string[]>([]),
     [graphMode, setGraphMode] = useState<"presets" | "targets">("presets");
@@ -627,9 +630,10 @@ export default function App() {
                 disabled={busy}
                 onClick={async () => {
                   const r = await run({ action: "check_updates" });
-                  if (r?.updates?.length) {
-                    setUpdates(r.updates);
-                    setUpdateIds(r.updates.map((s) => s.id));
+                  if (r) {
+                    setUpdateFailures(r.update_failures ?? []);
+                    setUpdates(r.updates ?? []);
+                    setUpdateIds((r.updates ?? []).map((s) => s.id));
                     setModal("updates");
                   }
                 }}
@@ -1859,6 +1863,22 @@ export default function App() {
                 selected={updateIds}
                 change={setUpdateIds}
               />
+              {updateFailures.map((failure) => {
+                const skill = state.config.library.find(
+                  (s) => s.id === failure.skill_id,
+                );
+                return (
+                  <div className="version-row" key={failure.skill_id}>
+                    <strong>
+                      {skill?.name ?? failure.skill_id}: Source unavailable
+                    </strong>
+                    <p>
+                      {skill?.source} / {skill?.skill_path}
+                    </p>
+                    <p>{failure.reason}</p>
+                  </div>
+                );
+              })}
               {updates.map((s) => (
                 <div className="version-row" key={s.id}>
                   <strong>{s.name}</strong>

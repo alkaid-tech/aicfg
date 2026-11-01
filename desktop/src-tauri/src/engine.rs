@@ -84,6 +84,11 @@ pub struct StateView {
     pub git_status: String,
 }
 #[derive(Serialize)]
+pub struct UpdateFailure {
+    pub skill_id: String,
+    pub reason: String,
+}
+#[derive(Serialize)]
 pub struct Response {
     pub state: StateView,
     pub notice: Option<String>,
@@ -91,6 +96,7 @@ pub struct Response {
     pub preview: Option<Preview>,
     pub markdown: Option<String>,
     pub updates: Option<Vec<Skill>>,
+    pub update_failures: Vec<UpdateFailure>,
 }
 pub struct Engine {
     pub repo: Option<Repository>,
@@ -217,6 +223,7 @@ impl Engine {
         let mut preview = None;
         let mut markdown = None;
         let mut updates = None;
+        let mut update_failures = Vec::new();
         match request {
             Request::State => {
                 if self.startup_read {
@@ -592,20 +599,52 @@ impl Engine {
                 let local = repo.root.join(".aicfg-local");
                 let mut found = BTreeMap::new();
                 let mut repositories = BTreeMap::<(String, Option<String>), Checkout>::new();
+                let mut failed_sources = BTreeMap::<(String, Option<String>), String>::new();
                 for skill in library {
-                    let key = (skill.source.clone(), skill.source_ref.clone());
-                    let directory = if let Some(dir) = repositories.get(&key) {
-                        dir.to_path_buf()
-                    } else {
-                        let dir =
-                            checkout_ref(&local, &skill.source, skill.source_ref.as_deref(), None)?;
-                        let path = dir.to_path_buf();
-                        repositories.insert(key, dir);
-                        path
+                    let result = (|| -> Result<_> {
+                        let key = (skill.source.clone(), skill.source_ref.clone());
+                        if let Some(error) = failed_sources.get(&key) {
+                            return Err(error.clone());
+                        }
+                        let directory = if let Some(dir) = repositories.get(&key) {
+                            dir.to_path_buf()
+                        } else {
+                            let dir = match checkout_ref(
+                                &local,
+                                &skill.source,
+                                skill.source_ref.as_deref(),
+                                None,
+                            ) {
+                                Ok(dir) => dir,
+                                Err(error) => {
+                                    failed_sources.insert(key, error.clone());
+                                    return Err(error);
+                                }
+                            };
+                            let path = dir.to_path_buf();
+                            repositories.insert(key, dir);
+                            path
+                        };
+                        let revision = command(&directory, "git", &["rev-parse", "HEAD"])?;
+                        let folder = directory.join(&skill.skill_path);
+                        let content_hash = tree_hash(&tree(&folder).map_err(|error| {
+                            format!(
+                                "Could not check updates for skill {} at {} in source {}: {error}",
+                                skill.name, skill.skill_path, skill.source
+                            )
+                        })?);
+                        Ok((revision, folder, content_hash))
+                    })();
+                    let (revision, folder, content_hash) = match result {
+                        Ok(value) => value,
+                        Err(reason) => {
+                            update_failures.push(UpdateFailure {
+                                skill_id: skill.id.clone(),
+                                reason,
+                            });
+                            continue;
+                        }
                     };
-                    let revision = command(&directory, "git", &["rev-parse", "HEAD"])?;
-                    let folder = directory.join(&skill.skill_path);
-                    let content_hash = tree_hash(&tree(&folder)?);
                     if content_hash != skill.content_hash {
                         let mut next = skill;
                         next.revision = revision;
@@ -659,6 +698,7 @@ impl Engine {
             preview,
             markdown,
             updates,
+            update_failures,
         })
     }
 }

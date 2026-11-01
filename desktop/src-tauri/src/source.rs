@@ -121,6 +121,8 @@ pub fn checkout_ref(
     {
         return Err("Skill version must be a full source commit identifier".into());
     }
+    fs::create_dir_all(local)
+        .map_err(|e| format!("Could not create source cache {}: {e}", local.display()))?;
     if let Some(reference) = reference {
         if reference.starts_with('-') {
             return Err("Invalid source branch or tag".into());
@@ -497,6 +499,14 @@ mod tests {
     }
 
     #[test]
+    fn checkout_with_reference_creates_missing_cache() {
+        let (temp, repo, _) = fixture();
+        let local = temp.path().join("missing-cache");
+        let checkout = checkout_ref(&local, &repo.to_string_lossy(), Some("main"), None).unwrap();
+        assert!(checkout.join(".git").is_dir());
+    }
+
+    #[test]
     fn branch_sources_survive_persistence_and_update_independently() {
         let (temp, repo, local) = fixture();
         let main = discover(&local, &repo.to_string_lossy())
@@ -565,6 +575,15 @@ mod tests {
         write_skill(&repo, "docs/skills/review", "review", "Feature update");
         commit(&repo);
         command(&repo, "git", &["switch", "main"]).unwrap();
+        let mut missing = feature.clone();
+        missing.id = uuid::Uuid::new_v4().to_string();
+        let missing_id = missing.id.clone();
+        missing.skill_path = "skills/removed".into();
+        engine.repo.as_mut().unwrap().config.library.push(missing);
+        let response = engine.execute(Request::CheckUpdates).unwrap();
+        assert_eq!(response.update_failures.len(), 1);
+        assert_eq!(response.update_failures[0].skill_id, missing_id);
+        assert_eq!(response.updates.unwrap().len(), 1);
         let updates = engine
             .execute(Request::CheckUpdates)
             .unwrap()
