@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.1](https://github.com/alkaid-tech/aicfg/compare/v0.4.0...v0.4.1) (2026-11-01)
+
+
+### Bug Fixes
+
+* **updates:** report unavailable skills and continue checking ([09c7113](https://github.com/alkaid-tech/aicfg/commit/09c71134d5ffd3271a0acb56bd6bf6dcab25f338))
+
 ## [0.4.0](https://github.com/alkaid-tech/aicfg/compare/v0.3.0...v0.4.0) (2026-10-28)
 
 
